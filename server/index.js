@@ -73,7 +73,11 @@ server.listen(PORT, () => {
   console.log(`server running on port ${PORT}`);
 });
 
-const DBURL = process.env.DB_URL;
+const DBURL = process.env.DB_URL || process.env.MONGO_URL;
+if (!DBURL) {
+  console.error("FATAL: No Database URL found (DB_URL or MONGO_URL)");
+}
+
 mongoose
   .connect(DBURL)
   .then(() => {
