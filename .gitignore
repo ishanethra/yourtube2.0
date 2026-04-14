@@ -1,0 +1,21 @@
+# Dependency directories
+node_modules/
+yourtube/node_modules/
+server/node_modules/
+
+# Next.js build output
+yourtube/.next/
+yourtube/out/
+
+# Environment variables
+.env
+.env.local
+yourtube/.env.local
+server/.env
+
+# Local database / storage
+server/uploads/
+
+# OS files
+.DS_Store
+Thumbs.db
