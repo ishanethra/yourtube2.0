@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 const userschema = mongoose.Schema({
-  email: { type: String, required: true },
-  mobile: { type: String },
+  email: { type: String, required: true, index: true },
+  mobile: { type: String, index: true },
   name: { type: String },
-  channelname: { type: String },
+  channelname: { type: String, index: true },
   description: { type: String },
   image: { type: String },
   state: { type: String },
