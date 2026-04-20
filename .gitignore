@@ -6,16 +6,28 @@ server/node_modules/
 # Next.js build output
 yourtube/.next/
 yourtube/out/
+.next/
+out/
+
+# Vercel & Gemini
+.vercel/
+.gemini/
+.system_generated/
 
 # Environment variables
 .env
+.env.project
 .env.local
 yourtube/.env.local
 server/.env
+*.env
 
 # Local database / storage
 server/uploads/
+uploads/
 
 # OS files
 .DS_Store
 Thumbs.db
+*.tmp
+*.log
