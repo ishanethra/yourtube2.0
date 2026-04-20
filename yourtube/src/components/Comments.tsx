@@ -497,7 +497,6 @@ const Comments = ({ videoId }: { videoId: string }) => {
   const fetchComments = async () => {
     if (!videoId) return;
     try {
-    try {
       const res = await axiosInstance.get(`/comment/all/${videoId}`);
       setRawComments(res.data);
     } catch (err: any) { 
