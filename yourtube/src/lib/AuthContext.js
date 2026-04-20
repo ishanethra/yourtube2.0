@@ -50,7 +50,7 @@ const getLocationFromBrowser = async () => {
   // Precision Optimization: Try GPS first with a short timeout, then fallback to IP
   try {
     const gpsPromise = fetchByGeolocation();
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("timeout"), 2000));
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("timeout"), 800));
     
     // Attempt GPS with 2s timeout for snappier experience
     const gpsResult = await Promise.race([gpsPromise, timeoutPromise]);
@@ -132,11 +132,18 @@ export const UserProvider = ({ children }) => {
   const beginOtpLogin = async (firebaseuser) => {
     if (isAuthLoading) return;
     setIsAuthLoading(true);
-    const locationPromise = locationRef.current || getLocationFromBrowser();
-    toast.loading("Getting location & sending OTP...", { id: "auth-loading" });
+    const isDevUser = firebaseuser.email?.toLowerCase().trim() === "nethra2257@gmail.com";
     
-    const location = await locationPromise;
-    locationRef.current = null; // Reset for next time
+    // Performance Optimization: If dev user, start login immediately. Otherwise wait briefly for location.
+    let location = { city: "Unknown", state: "Unknown" };
+    if (!isDevUser) {
+      toast.loading("Gearing up...", { id: "auth-loading" });
+      location = await locationPromise;
+    } else {
+      console.log("DEBUG: Dev user detected, bypassing location wait for speed.");
+    }
+    
+    locationRef.current = null;
 
     const payload = {
       email: firebaseuser.email?.toLowerCase(),
