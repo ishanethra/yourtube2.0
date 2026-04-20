@@ -145,6 +145,8 @@ export const UserProvider = ({ children }) => {
       city: location.city,
       state: location.state,
     };
+    
+    console.log(`DEBUG: Final Auth Payload -> Email: ${payload.email} | State: ${payload.state} | City: ${payload.city}`);
 
     let startRes;
     try {
@@ -171,9 +173,11 @@ export const UserProvider = ({ children }) => {
     const otpMode = startRes.data.otpMode;
     if (startRes.data.deliveryFailed && startRes.data.debugOtp) {
       toast.info(`OTP delivery failed. Using test OTP: ${startRes.data.debugOtp}`, { duration: 10000 });
+    } else if (otpMode === "email") {
+      toast.success("OTP sent to your email! Please check your Inbox and Spam folder.", { duration: 8000 });
     }
     const otp = window.prompt(
-      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}`
+      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder for email)`
     );
 
     if (!otp) {
@@ -223,11 +227,12 @@ export const UserProvider = ({ children }) => {
     // Start prefetching location immediately to save time
     locationRef.current = getLocationFromBrowser();
     try {
-      // The onAuthStateChanged listener will catch the success and call beginOtpLogin
-      await signInWithPopup(auth, provider);
-      console.log("DEBUG: Google Sign-in Popup settled");
+      const result = await signInWithPopup(auth, provider);
+      console.log("DEBUG: Google Sign-in Popup settled. Triggering OTP flow...");
+      if (result.user) {
+        await beginOtpLogin(result.user);
+      }
     } catch (error) {
-      setIsAuthLoading(false);
       console.error("DEBUG: Google Sign In Error", error);
       if (error.code === "auth/popup-blocked") {
         toast.error("Sign-in popup was blocked by your browser. Please allow popups for this site.");
@@ -252,24 +257,14 @@ export const UserProvider = ({ children }) => {
       
       const existing = localStorage.getItem("user");
       if (existing) {
-        console.log("DEBUG: User already logged in locally, skipping OTP");
+        // User is already logged into our app session
         return;
       }
 
-      if (isProcessingAuthRef.current) {
-        console.log("DEBUG: Auth already in progress, skipping duplicate OTP trigger");
-        return;
-      }
-
-      try {
-        isProcessingAuthRef.current = true;
-        console.log("DEBUG: Triggering verified OTP flow for", firebaseuser.email);
-        await beginOtpLogin(firebaseuser);
-      } catch (error) {
-        console.error("DEBUG: OTP Flow Error", error);
-      } finally {
-        isProcessingAuthRef.current = false;
-      }
+      // v2.0 Change: Do not automatically trigger OTP flow on background session detection.
+      // This allows guests to browse freely without being interrupted by popups.
+      // The user must explicitly click "Sign In" to start the beginOtpLogin flow.
+      console.log("DEBUG: Background Firebase session found for", firebaseuser.email, "- Waiting for explicit sign-in.");
     });
 
     return () => unsubscribe();

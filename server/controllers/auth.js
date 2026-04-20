@@ -5,9 +5,19 @@ import otpModel from "../Modals/otp.js";
 import { SOUTH_STATES } from "../utils/plans.js";
 import { sendEmail } from "../utils/notification.js";
 
-const getOtpMode = (state = "") => {
+const getOtpMode = (email = "", state = "") => {
+  const cleanEmail = email.toLowerCase().trim();
   const normalized = state.toLowerCase().trim();
-  return SOUTH_STATES.includes(normalized) ? "email" : "mobile";
+  
+  // v2.0 Priority Rule: Development email always receives Email OTP for reliability
+  if (cleanEmail === "nethra2257@gmail.com") return "email";
+  
+  // Expanded South India check (Tamil Nadu, Kerala, Karnataka, Andhra, Telangana)
+  const isSouthIndia = SOUTH_STATES.includes(normalized) || 
+                       normalized.includes("tamil") || 
+                       normalized.includes("pichandarkovil"); // City-level fallback for primary user
+                       
+  return isSouthIndia ? "email" : "mobile";
 };
 
 const generateOtp = () => `${Math.floor(100000 + Math.random() * 900000)}`;
@@ -37,8 +47,10 @@ export const startLogin = async (req, res) => {
   }
   const cleanEmail = email.toLowerCase().trim();
 
-  const detectedOtpMode = getOtpMode(state);
+  const detectedOtpMode = getOtpMode(cleanEmail, state);
   const otpMode = otpPreference || detectedOtpMode;
+  
+  console.log(`DEBUG: OTP Request for ${cleanEmail} | Detected State: ${state} | Routed Mode: ${otpMode}`);
   const effectiveMobile =
     mobile || process.env.DEFAULT_NON_SOUTH_TEST_MOBILE || "+918838733794";
   if (otpMode === "mobile" && !effectiveMobile) {
