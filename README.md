@@ -1,91 +1,99 @@
-# YourTube 2.0 — The Ultimate Streaming Experience
+# 🎥 YourTube 2.0 — The Ultimate Streaming Ecosystem
 
-**Live Demo: [yourtube-eight.vercel.app](https://yourtube-eight.vercel.app/)**
+[![Deployment Status](https://img.shields.io/badge/Deployment-Live-success?style=for-the-badge&logo=vercel)](https://yourtube-eight.vercel.app/)
+[![Tech Stack](https://img.shields.io/badge/Stack-Next.js%20|%20Node.js%20|%20MongoDB-blue?style=for-the-badge)](https://nextjs.org/)
+[![Security](https://img.shields.io/badge/Security-Hardened-red?style=for-the-badge)](https://twilio.com/)
 
-YourTube 2.0 is a premium, secure, and context-aware video streaming platform designed for modern consumers. Built with a focus on immersive interaction and robust security, it redefines the standard for community-driven content.
-
-## 🚀 Vision
-To provide a seamless, premium alternative to traditional video platforms, featuring gesture-driven controls and inclusive, moderated social interaction.
+**YourTube 2.0** is a premium, context-aware video streaming platform engineered for immersive viewing and secure social interaction. From gesture-controlled playback to real-time VoIP collaboration, it redefines how users consume and interact with content.
 
 ---
 
-## ✨ Key Features
+## 💎 Premium Features Showcase
 
-### 📡 Collaborative VoIP & Multi-Stream
-- **Two-Way Video/Audio**: Real-time collaboration via high-fidelity VoIP.
-- **Screen Sharing**: Effortlessly share your screen with collaborators.
-- **Direct Recording**: Record sessions and download directly as high-quality `.webm` files.
+### 🖖 Gesture Engine 2.0 (Mobile-First)
+Experience an app-like feel with advanced touch gestures designed for seamless navigation:
+- **Double Tap Right/Left**: Skips playback 10 seconds forward or backward.
+- **Single Tap Center**: Instant Pause/Resume functionality.
+- **Triple Tap Center**: Automatically skips to the next video in the queue.
+- **Triple Tap Right**: Triggers a secure session close (or exit to home).
+- **Triple Tap Left**: Instantly opens the collaborative comment section.
 
-### 🖖 Gesture Engine 2.0
-- **Single Tap**: Instant Play/Pause.
-- **Double Tap**: 
-  - Left/Right: High-speed Seek (10s).
-  - Center: Cinema Mode (Fullscreen).
-- **Triple Tap**: 
-  - Left: Auto-scroll to Comments.
-  - Center: Next Video.
-  - Right: Quick Exit.
+### 📶 Collaborative VoIP & Screen Share
+Break the barrier of passive viewing with integrated real-time communication:
+- **Video Calling**: High-fidelity video calls directly within the app via WebRTC.
+- **Shared Viewing**: Synchronized YouTube playback—watch together with friends in real-time.
+- **Local Recording**: Record your VoIP sessions and save them directly to your device as `.webm` files.
+- **Screen Share**: Broadcast your screen to participants for live discussions.
 
-### 🔒 Hardened Security & Inclusive Comments
-- **Multilingual Support**: Community input in any language (Tamil, Hindi, French, etc.).
-- **Contextual Transparency**: User city/suburb tags appear beside usernames.
-- **Security Modal Alert**: Real-time block of special characters (`@`, `$`, `#`, `!`) with a clear, high-contrast popup.
-- **Auto-Moderation**: Community-driven suppression of disruptive content (2-dislike auto-hide).
-- **In-App Translation**: Integrated globe-icon translation to bridge language gaps.
+### 🛡️ Secure Inclusive Commenting
+A safe and accessible community environment powered by smart moderation:
+- **In-App Translator**: Post in any language and translate comments with a single click.
+- **Contextual Origin**: Every comment displays the user's **exact city name** for localized context.
+- **Security Block**: Automatic blocking of comments containing restricted characters (`@`, `$`, `#`, `!`, etc.) with a dedicated security alert modal.
+- **Auto-Moderation**: Community-driven safety—comments with **2 dislikes** are automatically and permanently removed.
 
-### 🌗 Dynamic Context Engine
-- **Region-Aware Auth**: Smart OTP delivery—Email OTP for South India, Mobile OTP for other regions.
-- **Operational Themes**: Automated Light Theme window (10 AM - 12 PM IST) for South India; Sleek Dark Mode elsewhere.
+### 🌗 Context-Aware Theme & Auth
+The platform adapts dynamically to your environment:
+- **Smart Theming**: Automatically applies a **White (Light) Theme** if accessed between 10 AM - 12 PM IST within South India; defaults to **Dark Mode** otherwise.
+- **Regional Auth**: Intelligent OTP routing—South Indian users verify via **Email OTP**, while other regions receive **Mobile OTP** via Twilio.
 
-### 💳 Tiered Premium Ecosystem
-- **Instant Upgrades**: Seamless Razorpay integration for Bronze, Silver, and Gold tiers.
-- **Tiered Permissions**: 
-  - **Bronze**: 7-min daily limit, unlimited downloads.
-  - **Silver**: 10-min daily limit, priority streaming.
-  - **Gold**: Unlimited everything.
-- **Smart Enforcement**: Automatic playback pause and redirection when limits are reached.
+---
+
+## 📈 Tiered Access Model
+
+Our value ladder provides flexible viewing options tailored to every user:
+
+| Plan | Price | Watch Time | Daily Downloads | Benefits |
+| :--- | :--- | :--- | :--- | :--- |
+| **FREE** | ₹0 | 5 Minutes | 1 Video | Ad-supported, Standard Quality |
+| **BRONZE** | ₹10 | 7 Minutes | **Unlimited** | No Ads, Basic Support |
+| **SILVER** | ₹50 | 10 Minutes | **Unlimited** | Priority Stream, HD Content |
+| **GOLD** | ₹100 | **Unlimited** | **Unlimited** | 4K HDR, VIP Access |
+
+> [!TIP]
+> Upon successful payment via **Razorpay**, users receive an automated email invoice containing full transaction details and plan confirmation.
 
 ---
 
 ## 🛠️ Technical Stack
-- **Frontend**: Next.js, TailwindCSS (Zinc Palette), Lucide icons.
-- **Backend**: Node.js, Express, MongoDB.
-- **Communications**: Twilio (OTP), Razorpay (Billing), VoIP (WebRTC).
-- **State**: Precise Location (GPS/Nominatim), Firebase Auth.
+
+- **Frontend**: Next.js 14, TailwindCSS, Framer Motion, Lucide Icons.
+- **Backend**: Node.js (Express), MongoDB (Mongoose), Socket.io.
+- **Security**: Firebase Google Auth, Twilio SMS API, Custom SMTP.
+- **Payments**: Razorpay Integration (Test Mode).
+- **Geolocation**: Precise GPS (Navigator API) + Nominatim Reverse Geocoding.
 
 ---
 
-## 🏗️ Getting Started
+## 🚀 Getting Started
 
-### 1. Environment Setup
-Create a `.env` in the root with:
-```env
-# Twilio
-TWILIO_ACCOUNT_SID=your_sid
-TWILIO_AUTH_TOKEN=your_token
+### Prerequisites
+- Node.js (v18+)
+- MongoDB Atlas account
+- Twilio & Razorpay API Keys
 
-# Razorpay
-RAZORPAY_KEY_ID=your_id
-RAZORPAY_KEY_SECRET=your_secret
-
-# MongoDB
-MONGO_URL=your_mongo_url
-```
-
-### 2. Launch
+### Installation
 ```bash
-# Install dependencies
-npm install
+# Clone the repository
+git clone https://github.com/ishanethra/yourtube2.0.git
 
-# Start development server
-npm run dev
+# Install Frontend & Backend dependencies
+cd yourtube && npm install
+cd ../server && npm install
+
+# Configure Environment
+# Create .env files in both /yourtube and /server directories
+```
+
+### Execution
+```bash
+# Run Server (Port 5000)
+cd server && npm run dev
+
+# Run Frontend (Port 3000)
+cd yourtube && npm run dev
 ```
 
 ---
 
-## 📜 Project Rules
-- **Standard Text Only**: Symbols like `@`, `$`, and `!` are restricted from comments to ensure readable, spam-free discourse.
-- **City Privacy**: By participating, users agree to the display of their suburb/city name to foster localized community trust.
-
----
-**YourTube 2.0** — Made for the next generation of creators. 🏁🏜️🏁🏁
+**YourTube 2.0** — Made for the next generation of digital nomads. 🏁🏜️🏁🏁

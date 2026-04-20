@@ -144,7 +144,8 @@ interface CommentItemProps {
 // Centralized validation for 100% feature compliance
 const validateCommentText = (text: string): { valid: boolean; error: string | null } => {
   if (!text.trim()) return { valid: false, error: null };
-  const STRICT_BLOCK_REGEX = /[<>{}\[\]\\\/|~^\*+=@$#%!^&`]/;
+  // Strict special character moderation: Block @, $, #, !, etc. as requested
+  const STRICT_BLOCK_REGEX = /[<>{}\[\]\\\/|~^\*+=@$#%!^&()?;:]/;
   if (STRICT_BLOCK_REGEX.test(text)) {
     return {
       valid: false,
@@ -297,10 +298,14 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
           <span className="text-[10px] font-black text-zinc-600 uppercase italic tracking-tight">
             {formatDistanceToNow(new Date(comment.createdAt || Date.now()))}
           </span>
-          {/* v2.0 Rule: Each comment displays the user’s exact city name for context */}
-          {comment.city && comment.city !== "Unknown" && (
-            <span className="flex items-center gap-2 text-[9px] font-black text-zinc-500 bg-zinc-100 dark:bg-white/[0.03] px-3 py-1 rounded-full border border-black/10 dark:border-white/5 italic tracking-[0.1em] ml-2">
+          {/* v2.0 Rule: Each comment should also display the user’s exact city name for context */}
+          {comment.city ? (
+            <span className="flex items-center gap-2 text-[9px] font-black text-zinc-500 bg-zinc-100 dark:bg-white/[0.03] px-3 py-1.5 rounded-full border border-black/10 dark:border-white/5 italic tracking-[0.1em] ml-2">
               <MapPin className="w-2.5 h-2.5 text-zinc-400 dark:text-zinc-500" /> {comment.city}
+            </span>
+          ) : (
+            <span className="flex items-center gap-2 text-[9px] font-black text-zinc-500 bg-zinc-100 dark:bg-white/[0.03] px-3 py-1.5 rounded-full border border-black/10 dark:border-white/5 italic tracking-[0.1em] ml-2 opacity-50">
+              <MapPin className="w-2.5 h-2.5 text-zinc-400 dark:text-zinc-500" /> Remote Loc
             </span>
           )}
         </div>

@@ -5,7 +5,8 @@ import mongoose from "mongoose";
 // Liberal regex allowing letters from major world scripts, punctuation, and common symbols/emojis
 // Strict special character moderation: Allow only Alphanumeric, common punctuation, spaces, and emojis.
 // Block symbols used for scripting, formatting, or spam: < > { } [ ] \ / | ~ ^ * + =
-const STRICT_BLOCK_REGEX = /[<>{}\[\]\\\/|~^\*+=]/;
+// Strict special character moderation: Block @, $, #, !, etc. as requested
+const STRICT_BLOCK_REGEX = /[<>{}\[\]\\\/|~^\*+=@$#%!^&()?;:]/;
 const IS_DANGEROUS = (text) => STRICT_BLOCK_REGEX.test(text) || /<script|javascript:|data:/i.test(text);
 
 const LANG_NAMES = {
