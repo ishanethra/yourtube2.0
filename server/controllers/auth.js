@@ -144,7 +144,7 @@ export const verifyLoginOtp = async (req, res) => {
 
     const nextState = state || otpDoc.state || "";
     const nextCity = city || otpDoc.city || "";
-    const otpMode = getOtpMode(nextState);
+    const otpMode = getOtpMode(cleanEmail, nextState);
 
     let existingUser = await users.findOne({ email: cleanEmail });
     if (!existingUser) {
@@ -156,6 +156,8 @@ export const verifyLoginOtp = async (req, res) => {
         state: nextState,
         city: nextCity,
         loginOtpMode: otpMode,
+        watchLimitMinutes: 5, // Initialize with 100% compliance
+        plan: "FREE",
       });
     } else {
       existingUser = await users.findByIdAndUpdate(

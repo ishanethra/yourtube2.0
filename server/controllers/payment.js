@@ -201,14 +201,9 @@ export const verifyPayment = async (req, res) => {
       user.isPremiumDownloader = true;
     } else {
       user.plan = normalizedPlan;
-      const extraMinutes = PLAN_CONFIG[normalizedPlan].watchMinutes;
-      if (extraMinutes === null) {
-        user.watchLimitMinutes = null; // GOLD
-      } else {
-        // Option A: Stackable Limit - Add extra time to existing limit
-        const currentLimit = user.watchLimitMinutes || 5;
-        user.watchLimitMinutes = currentLimit + extraMinutes;
-      }
+      const targetMinutes = PLAN_CONFIG[normalizedPlan].watchMinutes;
+      // v2.0 Compliance: Direct assignment for 5/7/10/Unlimited minutes
+      user.watchLimitMinutes = targetMinutes; 
     }
 
     await user.save();
