@@ -6,11 +6,11 @@ export const PLAN_CONFIG = {
 };
 
 export const SOUTH_STATES = [
-  "tamil nadu",
-  "kerala",
-  "karnataka",
-  "andhra pradesh",
-  "telangana",
+  "tamil nadu", "tn",
+  "kerala", "kl",
+  "karnataka", "ka",
+  "andhra pradesh", "ap",
+  "telangana", "ts",
 ];
 
 export const normalizePlan = (input) => {

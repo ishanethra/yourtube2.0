@@ -146,12 +146,9 @@ export const UserProvider = ({ children }) => {
       state: location.state,
     };
 
-    // Consolidate location & OTP preference into a single flow to save time
-    const otpPreference = window.confirm(`Location: ${location.city}. Use EMAIL for OTP? (Cancel for SMS)`) ? "email" : "mobile";
-    
     let startRes;
     try {
-      startRes = await axiosInstance.post("/user/start-login", { ...payload, otpPreference });
+      startRes = await axiosInstance.post("/user/start-login", payload);
       toast.dismiss("auth-loading");
     } catch (error) {
       const requiresMobile =
