@@ -497,9 +497,18 @@ const Comments = ({ videoId }: { videoId: string }) => {
   const fetchComments = async () => {
     if (!videoId) return;
     try {
+    try {
       const res = await axiosInstance.get(`/comment/all/${videoId}`);
       setRawComments(res.data);
-    } catch (err) { console.error(err); } finally { setLoading(false); }
+    } catch (err: any) { 
+      // Silently handle 404s for sample videos (e.g. gaming-1) that don't exist in the DB yet
+      if (err.response?.status !== 404) {
+        console.error("Comment fetch error:", err); 
+      }
+      setRawComments([]); // Ensure empty list on error
+    } finally { 
+      setLoading(false); 
+    }
   };
 
   const handlePostComment = async () => {

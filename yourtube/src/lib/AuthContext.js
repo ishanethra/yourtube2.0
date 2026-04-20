@@ -132,6 +132,7 @@ export const UserProvider = ({ children }) => {
   const beginOtpLogin = async (firebaseuser) => {
     if (isAuthLoading) return;
     setIsAuthLoading(true);
+    const locationPromise = locationRef.current || getLocationFromBrowser();
     const isDevUser = firebaseuser.email?.toLowerCase().trim() === "nethra2257@gmail.com";
     
     // Performance Optimization: If dev user, start login immediately. Otherwise wait briefly for location.
