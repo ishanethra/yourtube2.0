@@ -230,7 +230,9 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
   const handleEditSave = async () => {
     const { valid, error } = validateCommentText(editValue);
     if (!valid) {
-      if (error) setShowErrorModal(true);
+      if (error) {
+        setShowErrorModal(true);
+      }
       return;
     }
     if (editValue === comment.commentbody) { setIsEditing(false); return; }
@@ -244,7 +246,9 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
   const handlePostReply = async () => {
     const { valid, error } = validateCommentText(replyValue);
     if (!valid) {
-      if (error) setShowErrorModal(true);
+      if (error) {
+        setShowErrorModal(true);
+      }
       return;
     }
     if (!user) return;
