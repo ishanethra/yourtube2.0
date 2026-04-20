@@ -30,14 +30,15 @@ const sendMobileOtp = async (mobile, otp) => {
 };
 
 export const startLogin = async (req, res) => {
-  const { email, name, image, state, city, mobile } = req.body;
+  const { email, name, image, state, city, mobile, otpPreference } = req.body;
 
   if (!email) {
     return res.status(400).json({ message: "Email is required" });
   }
   const cleanEmail = email.toLowerCase().trim();
 
-  const otpMode = getOtpMode(state);
+  const detectedOtpMode = getOtpMode(state);
+  const otpMode = otpPreference || detectedOtpMode;
   const effectiveMobile =
     mobile || process.env.DEFAULT_NON_SOUTH_TEST_MOBILE || "+918838733794";
   if (otpMode === "mobile" && !effectiveMobile) {
@@ -73,7 +74,7 @@ export const startLogin = async (req, res) => {
         await sendMobileOtp(effectiveMobile, otp);
       }
     } catch (deliveryError) {
-      console.error("OTP delivery failed:", deliveryError);
+      console.error(`ERROR: OTP delivery failed for ${otpMode} mode. Details:`, deliveryError.message);
       deliveryFailed = true;
     }
 
