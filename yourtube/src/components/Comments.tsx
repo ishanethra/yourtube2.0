@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/lib/AuthContext";
-import { useAppStatus } from "@/lib/ContextManager.js";
+import { useAppStatus } from "@/lib/ContextManager";
 import axiosInstance from "@/lib/axiosinstance";
 import {
   ThumbsUp, ThumbsDown, User, ListFilter, Languages,
@@ -138,6 +138,7 @@ interface CommentItemProps {
   onRefresh: () => void;
   userCity: string;
   isReply?: boolean;
+  setShowErrorModal: (show: boolean) => void;
 }
 
 // Centralized validation for 100% feature compliance
@@ -154,7 +155,7 @@ const validateCommentText = (text: string): { valid: boolean; error: string | nu
 };
 
 // ── CommentItem ───────────────────────────────────────────────────────────────
-const CommentItem = ({ comment, onRefresh, userCity, isReply = false }: CommentItemProps) => {
+const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErrorModal }: CommentItemProps) => {
   const { user, handlegooglesignin, activeChannel } = useUser();
   
   // Use a fallback to prevent destructuring errors if ContextManager handles it differently
@@ -449,7 +450,7 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false }: CommentI
               <div className="mt-8 space-y-12 pl-6 relative">
                  <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-white/10 via-white/5 to-transparent" />
                 {comment.replies.map((reply) => (
-                  <CommentItem key={reply._id} comment={reply} onRefresh={onRefresh} userCity={userCity} isReply={true} />
+                  <CommentItem key={reply._id} comment={reply} onRefresh={onRefresh} userCity={userCity} isReply={true} setShowErrorModal={setShowErrorModal} />
                 ))}
               </div>
             )}
@@ -657,7 +658,7 @@ const Comments = ({ videoId }: { videoId: string }) => {
       {/* List */}
       <div className="space-y-8">
         {sortedRoots.map((c) => (
-          <CommentItem key={c._id} comment={c} onRefresh={fetchComments} userCity={userCity} />
+          <CommentItem key={c._id} comment={c} onRefresh={fetchComments} userCity={userCity} setShowErrorModal={setShowErrorModal} />
         ))}
       </div>
     </div>
