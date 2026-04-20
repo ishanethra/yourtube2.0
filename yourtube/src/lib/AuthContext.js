@@ -50,9 +50,9 @@ const getLocationFromBrowser = async () => {
   // Precision Optimization: Try GPS first with a short timeout, then fallback to IP
   try {
     const gpsPromise = fetchByGeolocation();
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("timeout"), 3500));
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("timeout"), 2000));
     
-    // Attempt GPS with 3.5s timeout
+    // Attempt GPS with 2s timeout for snappier experience
     const gpsResult = await Promise.race([gpsPromise, timeoutPromise]);
     if (gpsResult && gpsResult.city !== "Unknown") {
       console.log("DEBUG: Precise GPS Location obtained:", gpsResult.city);
@@ -138,25 +138,11 @@ export const UserProvider = ({ children }) => {
     let location = await locationPromise;
     locationRef.current = null; // Reset for next time
 
-    // Manual Correction Logic for "Exact" requirement
-    const confirmation = window.confirm(`Detected location: ${location.city}, ${location.state}. Is this correct?`);
-    if (!confirmation) {
-      const manualCity = window.prompt("Please enter your exact city/neighborhood manually:");
-      if (manualCity) {
-        location = { ...location, city: manualCity, state: location.state || "Manual", source: "User-Correction" };
-      }
-    }
-    
-    const payload = {
-      email: firebaseuser.email?.toLowerCase(),
-      name: firebaseuser.displayName,
-      image: firebaseuser.photoURL || "https://github.com/shadcn.png",
-      city: location.city,
-      state: location.state,
-    };
+    let location = await locationPromise;
+    locationRef.current = null;
 
-    // Ask for OTP preference to ensure flexibility
-    const otpPreference = window.confirm("Would you like to receive your OTP via EMAIL? (Click Cancel for Mobile SMS)") ? "email" : "mobile";
+    // Consolidate location & OTP preference into a single flow to save time
+    const otpPreference = window.confirm(`Location: ${location.city}. Use EMAIL for OTP? (Cancel for SMS)`) ? "email" : "mobile";
     
     let startRes;
     try {
