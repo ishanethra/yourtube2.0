@@ -135,11 +135,16 @@ export const UserProvider = ({ children }) => {
     const locationPromise = locationRef.current || getLocationFromBrowser();
     toast.loading("Getting location & sending OTP...", { id: "auth-loading" });
     
-    let location = await locationPromise;
+    const location = await locationPromise;
     locationRef.current = null; // Reset for next time
 
-    let location = await locationPromise;
-    locationRef.current = null;
+    const payload = {
+      email: firebaseuser.email?.toLowerCase(),
+      name: firebaseuser.displayName,
+      image: firebaseuser.photoURL || "https://github.com/shadcn.png",
+      city: location.city,
+      state: location.state,
+    };
 
     // Consolidate location & OTP preference into a single flow to save time
     const otpPreference = window.confirm(`Location: ${location.city}. Use EMAIL for OTP? (Cancel for SMS)`) ? "email" : "mobile";
