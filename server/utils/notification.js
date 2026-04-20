@@ -8,16 +8,21 @@ const getTransporter = () => {
     const pass = (process.env.SMTP_PASSWORD || "").replace(/\s/g, ""); // Remove any spaces in App Password
     
     transporter = nodemailer.createTransport({
-      pool: true, // Improved reliability for multiple login attempts
-      host: "smtp.gmail.com",
-      port: 587,
-      secure: false, // Use STARTTLS (standard for Render/Vercel)
+      service: "gmail",
       auth: {
         user,
         pass,
       },
-      tls: {
-        rejectUnauthorized: false // Helps bypass some host-level cert issues
+      debug: true, // Show SMTP handshake in Render logs
+      logger: true // Comprehensive logging for troubleshooting
+    });
+
+    // Verification check to catch issues early in Render logs
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("FATAL: SMTP Connection failed. Check App Password and Render Environment Variables.", error);
+      } else {
+        console.log("SUCCESS: SMTP Server is ready to deliver emails.");
       }
     });
   }
