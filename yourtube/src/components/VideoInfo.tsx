@@ -169,7 +169,7 @@ const VideoInfo = ({ video }: any) => {
 
   const handleSubscribe = async () => {
     if (!user) return handlegooglesignin();
-    const targetChannelId = video.uploader?._id || video.uploader;
+    const targetChannelId = video.uploader?._id || video.uploader || video.videochanel || "sample-channel";
     if (!targetChannelId) {
       toast.error("Channel identification failed. Primary metadata missing.");
       return;
