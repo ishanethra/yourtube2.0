@@ -1,0 +1,14 @@
+{
+  "name": "yourtube-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "server",
+    "yourtube"
+  ],
+  "scripts": {
+    "install:all": "npm install && npm install --prefix server && npm install --prefix yourtube",
+    "build:frontend": "npm run build --prefix yourtube",
+    "start:backend": "npm start --prefix server"
+  }
+}
