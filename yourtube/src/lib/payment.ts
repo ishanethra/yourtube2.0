@@ -1,4 +1,4 @@
-import axiosInstance from "./axiosinstance";
+import axiosInstance from "@/lib/axiosinstance";
 
 declare global {
   interface Window {

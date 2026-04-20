@@ -11,7 +11,7 @@ import userroutes from "./routes/auth.js";
 import videoroutes from "./routes/video.js";
 import likeroutes from "./routes/like.js";
 import watchlaterroutes from "./routes/watchlater.js";
-import historyrroutes from "./routes/history.js";
+import historyroutes from "./routes/history.js";
 import commentroutes from "./routes/comment.js";
 import paymentroutes from "./routes/payment.js";
 
@@ -38,11 +38,24 @@ app.get("/", (req, res) => {
 app.use(bodyParser.json());
 app.use("/user", userroutes);
 app.use("/video", videoroutes);
+app.use("/download", videoroutes); // Add this
 app.use("/like", likeroutes);
 app.use("/watch", watchlaterroutes);
-app.use("/history", historyrroutes);
+app.use("/history", historyroutes); // Fixed typo
 app.use("/comment", commentroutes);
 app.use("/payment", paymentroutes);
+
+// Global Audit Logger for 404s (Fixes stale code detection)
+app.use((req, res, next) => {
+  console.log(`[Back-End Audit] Unhandled Request: ${req.method} ${req.url}`);
+  res.status(404).json({ message: "Infrastructure mismatch: Route not found on this instance." });
+});
+
+// Centralized Strategy Error Handler
+app.use((err, req, res, next) => {
+  console.error("[Back-End Trace] Operational Failure:", err.stack);
+  res.status(500).json({ message: "Stability Interrupted: System error recorded." });
+});
 
 io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {
@@ -60,6 +73,10 @@ io.on("connection", (socket) => {
 
   socket.on("webrtc-ice-candidate", ({ roomId, candidate }) => {
     socket.to(roomId).emit("webrtc-ice-candidate", { candidate });
+  });
+
+  socket.on("video-sync", ({ roomId, data }) => {
+    socket.to(roomId).emit("video-sync", data);
   });
 
   socket.on("leave-room", (roomId) => {

@@ -4,68 +4,34 @@ import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { UserProvider } from "../lib/AuthContext";
-import { useEffect, useState } from "react";
-import { useUser } from "@/lib/AuthContext";
+import { ContextProvider, useAppStatus } from "@/lib/ContextManager";
+import PremiumModal from "@/components/PremiumModal";
 
-const southStates = [
-  "tamil nadu",
-  "kerala",
-  "karnataka",
-  "andhra pradesh",
-  "telangana",
-];
-
-const ThemeController = () => {
-  const { user } = useUser();
-  const [detectedState, setDetectedState] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchLocation = async () => {
-      try {
-        const res = await fetch("https://ipapi.co/json/");
-        const data = await res.json();
-        if (data.region) {
-          setDetectedState(data.region.toLowerCase());
-        }
-      } catch (error) {
-        console.error("Location detection failed:", error);
-      }
-    };
-    fetchLocation();
-  }, []);
-
-  useEffect(() => {
-    const now = new Date();
-    const istDate = new Date(
-      now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
-    );
-    const hour = istDate.getHours();
-    
-    const currentState = (user?.state || detectedState || "").toLowerCase().trim();
-    const isSouth = southStates.includes(currentState);
-    const shouldUseLight = isSouth && hour >= 10 && hour < 12;
-
-    document.documentElement.classList.toggle("dark", !shouldUseLight);
-  }, [user?.state, detectedState]);
-
-  return null;
+const AppContent = ({ Component, pageProps }: { Component: any, pageProps: any }) => {
+  const { sidebarCollapsed, toggleSidebar } = useAppStatus();
+  
+  return (
+    <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white transition-colors duration-500">
+      <title>YourTube 2.0</title>
+      <Header onToggleSidebar={toggleSidebar} />
+      <Toaster />
+      <main className="flex">
+        <Sidebar collapsed={sidebarCollapsed} />
+        <div className="flex-1 min-w-0 overflow-x-hidden">
+          <Component {...pageProps} />
+        </div>
+      </main>
+      <PremiumModal />
+    </div>
+  );
 };
 
 export default function App({ Component, pageProps }: AppProps) {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
   return (
     <UserProvider>
-      <ThemeController />
-      <div className="min-h-screen bg-white text-black dark:bg-black dark:text-white">
-        <title>Your-Tube Clone</title>
-        <Header onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)} />
-        <Toaster />
-        <div className="flex">
-          <Sidebar collapsed={sidebarCollapsed} />
-          <Component {...pageProps} />
-        </div>
-      </div>
+      <ContextProvider>
+        <AppContent Component={Component} pageProps={pageProps} />
+      </ContextProvider>
     </UserProvider>
   );
 }

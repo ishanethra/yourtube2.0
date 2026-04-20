@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { safeNumber, safeTimeAgo } from "@/lib/date";
+import AdCard from "./AdCard";
+import { useUser } from "@/lib/AuthContext";
 
 interface RelatedVideosProps {
   videos: Array<{
@@ -13,8 +15,17 @@ interface RelatedVideosProps {
 }
 
 export default function RelatedVideos({ videos }: RelatedVideosProps) {
+  const { user } = useUser();
+  const showAds = !user || (user.plan || "FREE").toUpperCase() === "FREE";
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      {showAds && (
+        <div className="mb-4 transform scale-95 opacity-80 hover:opacity-100 transition-opacity">
+           <AdCard />
+        </div>
+      )}
+      <div className="space-y-2">
       {Array.isArray(videos) && videos.map((video) => (
         <Link
           key={video._id}
@@ -27,6 +38,9 @@ export default function RelatedVideos({ videos }: RelatedVideosProps) {
                 src={`https://i.ytimg.com/vi/${video.youtubeId}/hqdefault.jpg`}
                 alt={video.videotitle}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=800&q=80"; // Premium abstract placeholder
+                }}
               />
             ) : (
               <video
@@ -46,6 +60,7 @@ export default function RelatedVideos({ videos }: RelatedVideosProps) {
           </div>
         </Link>
       ))}
+      </div>
     </div>
   );
 }

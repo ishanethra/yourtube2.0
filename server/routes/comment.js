@@ -4,16 +4,17 @@ import {
   editcomment,
   getallcomment,
   postcomment,
-  toggleCommentDislike,
-  toggleCommentLike,
-  translateComment,
+  votecomment,
+  translatecomment,
 } from "../controllers/comment.js";
+
 const routes = express.Router();
-routes.get("/:videoid", getallcomment);
+
+routes.get("/all/:videoid", getallcomment);
 routes.post("/postcomment", postcomment);
-routes.delete("/deletecomment/:id", deletecomment);
-routes.post("/editcomment/:id", editcomment);
-routes.post("/like/:id", toggleCommentLike);
-routes.post("/dislike/:id", toggleCommentDislike);
-routes.get("/translate/:id", translateComment);
+routes.delete("/:id", deletecomment);
+routes.patch("/:id", editcomment);
+routes.post("/:id/vote", votecomment);
+routes.get("/:id/translate", translatecomment);
+
 export default routes;

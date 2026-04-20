@@ -14,6 +14,10 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+if (!firebaseConfig.apiKey) {
+  console.error("FIREBASE ERROR: NEXT_PUBLIC_FIREBASE_API_KEY is missing from .env.local. Check your Auth connection!");
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);

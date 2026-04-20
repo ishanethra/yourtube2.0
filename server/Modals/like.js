@@ -7,9 +7,13 @@ const likeschema = mongoose.Schema(
       required: true,
     },
     videoid: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "videofiles",
+      type: String,
       required: true,
+    },
+    type: {
+      type: String,
+      enum: ["like", "dislike"],
+      default: "like",
     },
     likedon: { type: Date, default: Date.now },
   },

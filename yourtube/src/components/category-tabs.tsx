@@ -31,7 +31,7 @@ export default function CategoryTabs({
         <Button
           key={category}
           variant={activeCategory === category ? "default" : "secondary"}
-          className="whitespace-nowrap"
+          className="whitespace-nowrap rounded-full px-5 h-9 text-xs font-bold leading-none shadow-sm transition-all duration-300"
           onClick={() => onChange(category)}
         >
           {category}

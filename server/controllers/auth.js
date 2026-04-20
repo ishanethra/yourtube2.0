@@ -13,13 +13,18 @@ const getOtpMode = (state = "") => {
 const generateOtp = () => `${Math.floor(100000 + Math.random() * 900000)}`;
 
 const sendMobileOtp = async (mobile, otp) => {
-  if (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN || !process.env.TWILIO_PHONE_NUMBER) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  
+  if (!accountSid || !authToken) {
     throw new Error("Twilio credentials missing");
   }
-  const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+
+  const client = twilio(accountSid, authToken);
+
   await client.messages.create({
     body: `Your YourTube OTP is ${otp}`,
-    from: process.env.TWILIO_PHONE_NUMBER,
+    from: "+918838733794",
     to: mobile,
   });
 };
@@ -30,6 +35,7 @@ export const startLogin = async (req, res) => {
   if (!email) {
     return res.status(400).json({ message: "Email is required" });
   }
+  const cleanEmail = email.toLowerCase().trim();
 
   const otpMode = getOtpMode(state);
   const effectiveMobile =
@@ -44,9 +50,9 @@ export const startLogin = async (req, res) => {
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
   try {
-    await otpModel.deleteMany({ email });
+    await otpModel.deleteMany({ email: cleanEmail });
     await otpModel.create({
-      email,
+      email: cleanEmail,
       mobile: effectiveMobile,
       otp,
       state,
@@ -58,7 +64,7 @@ export const startLogin = async (req, res) => {
     try {
       if (otpMode === "email") {
         await sendEmail({
-          to: email,
+          to: cleanEmail,
           subject: "YourTube Login OTP",
           text: `Your OTP is ${otp}. It expires in 5 minutes.`,
           html: `<p>Your OTP is <b>${otp}</b>. It expires in 5 minutes.</p>`,
@@ -82,7 +88,7 @@ export const startLogin = async (req, res) => {
         ? "OTP sent to email"
         : "OTP sent to mobile",
       profilePreview: {
-        email,
+        email: cleanEmail,
         name,
         image,
         state,
@@ -102,13 +108,22 @@ export const verifyLoginOtp = async (req, res) => {
   if (!email || !otp) {
     return res.status(400).json({ message: "Email and OTP are required" });
   }
+  const cleanEmail = email.toLowerCase().trim();
+  console.log(`DEBUG: Verifying OTP for ${cleanEmail}, provided OTP: ${otp}`);
 
   try {
-    const otpDoc = await otpModel.findOne({ email }).sort({ createdAt: -1 });
-    if (!otpDoc || otpDoc.expiresAt < new Date()) {
+    const otpDoc = await otpModel.findOne({ email: cleanEmail }).sort({ createdAt: -1 });
+    if (!otpDoc) {
+      console.log(`DEBUG: No OTP document found for ${cleanEmail}`);
+      return res.status(400).json({ message: "No active OTP session found. Request a new one." });
+    }
+    if (otpDoc.expiresAt < new Date()) {
+      console.log(`DEBUG: OTP expired for ${cleanEmail}. Exp: ${otpDoc.expiresAt}`);
       return res.status(400).json({ message: "OTP expired. Request a new one." });
     }
+    
     if (otpDoc.otp !== otp) {
+      console.log(`DEBUG: OTP mismatch for ${cleanEmail}. Expected: ${otpDoc.otp}, Got: ${otp}`);
       return res.status(400).json({ message: "Invalid OTP" });
     }
 
@@ -116,10 +131,10 @@ export const verifyLoginOtp = async (req, res) => {
     const nextCity = city || otpDoc.city || "";
     const otpMode = getOtpMode(nextState);
 
-    let existingUser = await users.findOne({ email });
+    let existingUser = await users.findOne({ email: cleanEmail });
     if (!existingUser) {
       existingUser = await users.create({
-        email,
+        email: cleanEmail,
         mobile: mobile || otpDoc.mobile,
         name,
         image,
@@ -144,7 +159,7 @@ export const verifyLoginOtp = async (req, res) => {
       );
     }
 
-    await otpModel.deleteMany({ email });
+    await otpModel.deleteMany({ email: cleanEmail });
 
     return res.status(200).json({
       verified: true,
@@ -159,11 +174,12 @@ export const verifyLoginOtp = async (req, res) => {
 export const login = async (req, res) => {
   const { email, name, image } = req.body;
 
+  const cleanEmail = email.toLowerCase().trim();
   try {
-    const existingUser = await users.findOne({ email });
+    const existingUser = await users.findOne({ email: cleanEmail });
 
     if (!existingUser) {
-      const newUser = await users.create({ email, name, image });
+      const newUser = await users.create({ email: cleanEmail, name, image });
       return res.status(201).json({ result: newUser });
     }
     return res.status(200).json({ result: existingUser });
@@ -216,4 +232,159 @@ export const getUserById = async (req, res) => {
     console.error(error);
     return res.status(500).json({ message: "Something went wrong" });
   }
+};
+
+export const subscribeChannel = async (req, res) => {
+  const { id: channelId } = req.params;
+  const { userId } = req.body;
+
+  const isSampleChannel = !mongoose.Types.ObjectId.isValid(channelId);
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid user ID" });
+  }
+
+  try {
+    const subscriber = await users.findById(userId);
+
+    if (!subscriber) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (isSampleChannel) {
+      // Handle Sample Channel Subscription
+      await users.findByIdAndUpdate(userId, { $addToSet: { subscribedChannels: channelId } });
+      return res.status(200).json({ message: "Subscribed to sample channel successfully" });
+    }
+
+    const channel = await users.findById(channelId);
+    if (!channel) {
+      return res.status(404).json({ message: "Channel not found" });
+    }
+
+    if (channel.subscribers.includes(userId)) {
+      return res.status(200).json({ message: "Already subscribed", subscribed: true });
+    }
+
+    await users.findByIdAndUpdate(channelId, { $addToSet: { subscribers: userId } });
+    await users.findByIdAndUpdate(userId, { $addToSet: { subscribedChannels: channelId } });
+
+    return res.status(200).json({ message: "Subscribed successfully", subscribed: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const unsubscribeChannel = async (req, res) => {
+  const { id: channelId } = req.params;
+  const { userId } = req.body;
+
+  const isSampleChannel = !mongoose.Types.ObjectId.isValid(channelId);
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(400).json({ message: "Invalid user ID" });
+  }
+
+  try {
+    if (isSampleChannel) {
+      await users.findByIdAndUpdate(userId, { $pull: { subscribedChannels: channelId } });
+      return res.status(200).json({ message: "Unsubscribed from sample channel successfully", subscribed: false });
+    }
+
+    await users.findByIdAndUpdate(channelId, { $pull: { subscribers: userId } });
+    await users.findByIdAndUpdate(userId, { $pull: { subscribedChannels: channelId } });
+
+    return res.status(200).json({ message: "Unsubscribed successfully", subscribed: false });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const updateWatchTime = async (req, res) => {
+  const { id } = req.params;
+  const { incrementSeconds } = req.body;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(404).json({ message: "Invalid user id" });
+  }
+
+  try {
+    const user = await users.findById(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+    let update = {};
+
+    if (user.lastWatchDate !== today) {
+      // It's a new day! Reset watch time
+      update = {
+        $set: {
+          lastWatchDate: today,
+          watchedSecondsToday: incrementSeconds || 0,
+        },
+      };
+    } else {
+      // Increment existing watch time
+      update = {
+        $inc: { watchedSecondsToday: incrementSeconds || 0 },
+      };
+    }
+
+    const updatedUser = await users.findByIdAndUpdate(id, update, { new: true });
+    
+    const limitMinutes = updatedUser.watchLimitMinutes;
+    // If limitMinutes is null, it's unlimited. Return a large number (100 years).
+    const limitSeconds = limitMinutes === null ? 3153600000 : limitMinutes * 60;
+    const remainingSeconds = Math.max(0, limitSeconds - updatedUser.watchedSecondsToday);
+
+    return res.status(200).json({ 
+      watchedSecondsToday: updatedUser.watchedSecondsToday,
+      remainingSeconds
+    });
+  } catch (error) {
+    console.error("Update Watch Time error:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const getSubscriptionStatus = async (req, res) => {
+  const { channelId, userId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(userId)) {
+    return res.status(200).json({ isSubscribed: false });
+  }
+
+  try {
+    const user = await users.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isSubscribed = user.subscribedChannels.includes(channelId);
+    return res.status(200).json({ isSubscribed });
+  } catch (error) {
+    console.error("Get Subscription Status error:", error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const subscribeChannelBody = async (req, res) => {
+  const { channelId, userId } = req.body;
+  
+  if (!channelId || !userId) {
+    return res.status(400).json({ message: "Missing channel or user ID" });
+  }
+
+  // Wrap internal call
+  req.params.id = channelId;
+  return subscribeChannel(req, res);
+};
+
+export const updateWatchTimeBody = async (req, res) => {
+  const { userId, incrementSeconds } = req.body;
+  if (!userId) return res.status(400).json({ message: "Missing user ID" });
+
+  // Wrap internal call
+  req.params.id = userId;
+  return updateWatchTime(req, res);
 };

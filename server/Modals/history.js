@@ -7,8 +7,7 @@ const historyschema = mongoose.Schema(
       required: true,
     },
     videoid: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "videofiles",
+      type: String,
       required: true,
     },
     likedon: { type: Date, default: Date.now },

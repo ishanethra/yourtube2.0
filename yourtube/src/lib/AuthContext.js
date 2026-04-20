@@ -1,47 +1,100 @@
 import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
-import { useState, createContext, useEffect, useContext } from "react";
+import { useState, createContext, useEffect, useContext, useRef } from "react";
 import { provider, auth } from "./firebase";
-import axiosInstance from "./axiosinstance";
+import axiosInstance from "@/lib/axiosinstance";
+import { toast } from "sonner";
 
 const UserContext = createContext();
 
 const getLocationFromBrowser = async () => {
-  if (typeof window === "undefined" || !navigator.geolocation) {
-    return { city: "Unknown", state: "Unknown" };
-  }
+  const fetchIPAPI = async () => {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      const data = await res.json();
+      return { city: data.city, state: data.region, lat: data.latitude, lon: data.longitude, source: "IP-API" };
+    } catch { return null; }
+  };
 
-  return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const { latitude, longitude } = position.coords;
-          const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`
-          );
-          const data = await response.json();
-          const city =
-            data?.address?.city ||
-            data?.address?.town ||
-            data?.address?.village ||
-            "Unknown";
-          const state = data?.address?.state || "Unknown";
-          resolve({ city, state });
-        } catch (error) {
-          resolve({ city: "Unknown", state: "Unknown" });
-        }
-      },
-      () => resolve({ city: "Unknown", state: "Unknown" }),
-      { enableHighAccuracy: false, timeout: 10000 }
-    );
-  });
+  const fetchIP_API = async () => {
+    try {
+      const res = await fetch("http://ip-api.com/json/");
+      const data = await res.json();
+      return { city: data.city, state: data.regionName, lat: data.lat, lon: data.lon, source: "IP-API-COM" };
+    } catch { return null; }
+  };
+
+  const fetchByGeolocation = async () => {
+    if (typeof window === "undefined" || !navigator.geolocation) return null;
+    return new Promise((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&zoom=18&accept-language=en`);
+            const data = await res.json();
+            resolve({
+              city: data.address.suburb || data.address.neighbourhood || data.address.village || data.address.town || data.address.city,
+              state: data.address.state,
+              lat: pos.coords.latitude,
+              lon: pos.coords.longitude,
+              source: "GPS-Nominatim"
+            });
+          } catch { resolve(null); }
+        },
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  };
+
+  // Run all in parallel for speed
+  const [gps, ip1, ip2] = await Promise.all([fetchByGeolocation(), fetchIPAPI(), fetchIP_API()]);
+  
+  // Confidence priority: GPS > IP-API-COM (often better in India) > IP-API (global fallback)
+  const result = gps || ip2 || ip1 || { city: "Unknown", state: "Unknown" };
+  
+  // Debug log for accuracy tracking
+  console.log("DEBUG: Location Engine Result:", result);
+  return result;
 };
 
 export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const locationRef = useRef(null);
 
   const login = (userdata) => {
-    setUser(userdata);
-    localStorage.setItem("user", JSON.stringify(userdata));
+    if (!userdata) return;
+    
+    // Ensure we extract the base object if it's nested (common with Axios/Mongoose responses)
+    const rawData = userdata._doc || userdata.result || userdata;
+    
+    const sanitizedUser = {
+      ...rawData,
+      _id: rawData._id || rawData.id || userdata._id || userdata.id,
+      name: (rawData?.name && rawData.name !== "undefined") 
+        ? rawData.name 
+        : (rawData?.channelname || rawData?.email?.split('@')[0] || "User")
+    };
+
+    // Sanity check: If we still don't have an _id, we shouldn't save a broken session
+    if (!sanitizedUser._id) {
+       console.warn("DEBUG: Login attempted with missing _id. Data:", userdata);
+    }
+
+    setUser(sanitizedUser);
+    localStorage.setItem("user", JSON.stringify(sanitizedUser));
+  };
+
+  const refreshUser = async () => {
+    if (!user?._id) return;
+    try {
+      const res = await axiosInstance.get(`/user/${user._id}`);
+      if (res.data) {
+        login(res.data);
+      }
+    } catch (error) {
+      console.error("Failed to refresh user data:", error);
+    }
   };
 
   const logout = async () => {
@@ -49,15 +102,33 @@ export const UserProvider = ({ children }) => {
     localStorage.removeItem("user");
     try {
       await signOut(auth);
+      toast.success("Signed out successfully");
     } catch (error) {
       console.error("Error during sign out:", error);
+      toast.error("Error signing out");
     }
   };
 
   const beginOtpLogin = async (firebaseuser) => {
-    const location = await getLocationFromBrowser();
+    if (isAuthLoading) return;
+    setIsAuthLoading(true);
+    const locationPromise = locationRef.current || getLocationFromBrowser();
+    toast.loading("Getting location & sending OTP...", { id: "auth-loading" });
+    
+    let location = await locationPromise;
+    locationRef.current = null; // Reset for next time
+
+    // Manual Correction Logic for "Exact" requirement
+    const confirmation = window.confirm(`Detected location: ${location.city}, ${location.state}. Is this correct?`);
+    if (!confirmation) {
+      const manualCity = window.prompt("Please enter your exact city/neighborhood manually:");
+      if (manualCity) {
+        location = { ...location, city: manualCity, state: location.state || "Manual", source: "User-Correction" };
+      }
+    }
+    
     const payload = {
-      email: firebaseuser.email,
+      email: firebaseuser.email?.toLowerCase(),
       name: firebaseuser.displayName,
       image: firebaseuser.photoURL || "https://github.com/shadcn.png",
       city: location.city,
@@ -67,6 +138,7 @@ export const UserProvider = ({ children }) => {
     let startRes;
     try {
       startRes = await axiosInstance.post("/user/start-login", payload);
+      toast.dismiss("auth-loading");
     } catch (error) {
       const requiresMobile =
         error?.response?.data?.message?.toLowerCase()?.includes("mobile") ||
@@ -87,57 +159,113 @@ export const UserProvider = ({ children }) => {
 
     const otpMode = startRes.data.otpMode;
     if (startRes.data.deliveryFailed && startRes.data.debugOtp) {
-      window.alert(`OTP delivery failed. Use this test OTP: ${startRes.data.debugOtp}`);
+      toast.info(`OTP delivery failed. Using test OTP: ${startRes.data.debugOtp}`, { duration: 10000 });
     }
     const otp = window.prompt(
       `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}`
     );
 
     if (!otp) {
-      throw new Error("OTP is required");
+      setIsAuthLoading(false);
+      toast.error("Login cancelled: OTP is required");
+      return;
     }
 
-    const verifyRes = await axiosInstance.post("/user/verify-otp", {
-      ...payload,
-      mobile: startRes.data?.profilePreview?.mobile,
-      otp,
-    });
+    try {
+      const verifyRes = await axiosInstance.post("/user/verify-otp", {
+        ...payload,
+        email: payload.email?.toLowerCase(),
+        mobile: startRes.data?.profilePreview?.mobile,
+        otp,
+      });
 
-    login(verifyRes.data.result);
+      const userData = verifyRes.data.result;
+      login(userData);
+      
+      const displayName = userData?.name || userData?.channelname || userData?.email?.split('@')[0] || "User";
+      toast.success(`Welcome back, ${displayName}`);
+      console.log("SUCCESS: User signed in and verified with OTP locally");
+    } catch (error) {
+      console.error("DEBUG: OTP Login Failed", error);
+      const serverMessage = error?.response?.data?.message || "Login failed";
+      
+      if (error?.response?.status === 404) {
+        toast.error("Backend endpoint not found. Ensure server is running at PORT 5000");
+      } else {
+        toast.error(serverMessage);
+      }
+      throw error;
+    } finally {
+      setIsAuthLoading(false);
+    }
   };
 
+  const isProcessingAuthRef = useRef(false);
+
+  useEffect(() => {
+    console.log("DEBUG: AuthContext current user state updated:", user);
+  }, [user]);
+
   const handlegooglesignin = async () => {
+    if (isAuthLoading) return;
+    setIsAuthLoading(true);
+    // Start prefetching location immediately to save time
+    locationRef.current = getLocationFromBrowser();
     try {
-      const result = await signInWithPopup(auth, provider);
-      const firebaseuser = result.user;
-      await beginOtpLogin(firebaseuser);
+      // The onAuthStateChanged listener will catch the success and call beginOtpLogin
+      await signInWithPopup(auth, provider);
+      console.log("DEBUG: Google Sign-in Popup settled");
     } catch (error) {
-      console.error(error);
+      setIsAuthLoading(false);
+      console.error("DEBUG: Google Sign In Error", error);
+      if (error.code === "auth/popup-blocked") {
+        toast.error("Sign-in popup was blocked by your browser. Please allow popups for this site.");
+      } else if (error.code === "auth/cancelled-popup-request") {
+        // Silent fail as it's usually handled or a duplicate
+      } else {
+        toast.error(`Sign-in Error: ${error.message}`);
+      }
     }
   };
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
     if (stored) {
-      setUser(JSON.parse(stored));
+      const parsed = JSON.parse(stored);
+      // Re-run through login logic to sanitize any existing "undefined" strings
+      login(parsed);
     }
 
-    const unsubcribe = onAuthStateChanged(auth, async (firebaseuser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseuser) => {
       if (!firebaseuser) return;
+      
       const existing = localStorage.getItem("user");
-      if (existing) return;
+      if (existing) {
+        console.log("DEBUG: User already logged in locally, skipping OTP");
+        return;
+      }
+
+      if (isProcessingAuthRef.current) {
+        console.log("DEBUG: Auth already in progress, skipping duplicate OTP trigger");
+        return;
+      }
+
       try {
+        isProcessingAuthRef.current = true;
+        console.log("DEBUG: Triggering verified OTP flow for", firebaseuser.email);
         await beginOtpLogin(firebaseuser);
       } catch (error) {
-        console.error(error);
+        console.error("DEBUG: OTP Flow Error", error);
+      } finally {
+        isProcessingAuthRef.current = false;
       }
     });
 
-    return () => unsubcribe();
+    return () => unsubscribe();
   }, []);
 
   return (
-    <UserContext.Provider value={{ user, login, logout, handlegooglesignin }}>
+    <UserContext.Provider value={{ user, login, logout, refreshUser, handlegooglesignin, isAuthLoading }}>
       {children}
     </UserContext.Provider>
   );

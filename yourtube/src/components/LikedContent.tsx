@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
+import { sampleYoutubeVideos } from "@/lib/sampleVideos";
 
 export default function LikedVideosContent() {
   const [likedVideos, setLikedVideos] = useState<any[]>([]);
@@ -31,8 +32,17 @@ export default function LikedVideosContent() {
 
     try {
       const likedData = await axiosInstance.get(`/like/${user?._id}`);
+      
+      // Hydrate YouTube samples that are just strings
+      const hydrated = likedData.data.map((item: any) => {
+        if (typeof item.videoid === "string") {
+          const sample = sampleYoutubeVideos.find(v => v._id === item.videoid);
+          return { ...item, videoid: sample || { _id: item.videoid, videotitle: "Unknown Video" } };
+        }
+        return item;
+      });
 
-      setLikedVideos(likedData.data);
+      setLikedVideos(hydrated);
     } catch (error) {
       console.error("Error loading liked videos:", error);
     } finally {
@@ -44,7 +54,7 @@ export default function LikedVideosContent() {
     if (!user) return;
 
     try {
-      console.log("Unliking video:", videoId, "for user:", user.id);
+      console.log("Unliking video:", videoId, "for user:", user._id);
       setLikedVideos(likedVideos.filter((item) => item._id !== likedVideoId));
     } catch (error) {
       console.error("Error unliking video:", error);
@@ -76,7 +86,7 @@ export default function LikedVideosContent() {
       </div>
     );
   }
-  const videos = "/video/vdo.mp4";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -90,27 +100,35 @@ export default function LikedVideosContent() {
       <div className="space-y-4">
         {likedVideos.map((item) => (
           <div key={item._id} className="flex gap-4 group">
-            <Link href={`/watch/${item.videoid._id}`} className="flex-shrink-0">
+            <Link href={`/watch/${item.videoid?._id}`} className="flex-shrink-0">
               <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden">
-                <video
-                  src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/${item.videoid?.filepath}`}
-                  className="object-cover group-hover:scale-105 transition-transform duration-200"
-                />
+                {item.videoid?.youtubeId ? (
+                   <img 
+                      src={`https://img.youtube.com/vi/${item.videoid.youtubeId}/mqdefault.jpg`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      alt={item.videoid.videotitle}
+                   />
+                ) : (
+                  <video
+                    src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/${item.videoid?.filepath}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                )}
               </div>
             </Link>
 
             <div className="flex-1 min-w-0">
-              <Link href={`/watch/${item.videoid._id}`}>
+              <Link href={`/watch/${item.videoid?._id}`}>
                 <h3 className="font-medium text-sm line-clamp-2 group-hover:text-blue-600 mb-1">
-                  {item.videoid.videotitle}
+                  {item.videoid?.videotitle}
                 </h3>
               </Link>
               <p className="text-sm text-gray-600">
-                {item.videoid.videochanel}
+                {item.videoid?.videochanel || "Unknown Channel"}
               </p>
               <p className="text-sm text-gray-600">
-                {item.videoid.views.toLocaleString()} views •{" "}
-                {safeTimeAgo(item.videoid.createdAt)}
+                {safeNumber(item.videoid?.views)} views •{" "}
+                {safeTimeAgo(item.videoid?.createdAt)}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Liked {safeTimeAgo(item.createdAt)}
@@ -129,7 +147,7 @@ export default function LikedVideosContent() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  onClick={() => handleUnlikeVideo(item.videoid._id, item._id)}
+                  onClick={() => handleUnlikeVideo(item.videoid?._id, item._id)}
                 >
                   <X className="w-4 h-4 mr-2" />
                   Remove from liked videos

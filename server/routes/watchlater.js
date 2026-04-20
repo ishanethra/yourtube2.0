@@ -1,10 +1,16 @@
 import express from "express";
 import {
-  getallwatchlater,
-  handlewatchlater,
+  getWatchLaterVideos,
+  addToWatchLater,
+  removeFromWatchLater,
+  checkWatchLaterStatus
 } from "../controllers/watchlater.js";
 
 const routes = express.Router();
-routes.get("/:userId", getallwatchlater);
-routes.post("/:videoId", handlewatchlater);
+
+routes.post("/add", addToWatchLater);
+routes.get("/:userId", getWatchLaterVideos);
+routes.delete("/remove/:videoId/:userId", removeFromWatchLater);
+routes.get("/status/:videoId/:userId", checkWatchLaterStatus);
+
 export default routes;

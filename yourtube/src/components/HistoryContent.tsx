@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import axiosInstance from "@/lib/axiosinstance";
 import { useUser } from "@/lib/AuthContext";
+import { sampleYoutubeVideos } from "@/lib/sampleVideos";
+import { toast } from "sonner";
 
 export default function HistoryContent() {
   const [history, setHistory] = useState<any[]>([]);
@@ -33,24 +35,36 @@ export default function HistoryContent() {
 
     try {
       const historyData = await axiosInstance.get(`/history/${user?._id}`);
-      setHistory(historyData.data);
+      
+      // Hydrate YouTube samples that are just strings
+      const hydrated = historyData.data.map((item: any) => {
+        if (typeof item.videoid === "string") {
+          const sample = sampleYoutubeVideos.find(v => v._id === item.videoid);
+          return { ...item, videoid: sample || { _id: item.videoid, videotitle: "Unknown Video" } };
+        }
+        return item;
+      });
+
+      setHistory(hydrated);
     } catch (error) {
       console.error("Error loading history:", error);
     } finally {
       setLoading(false);
     }
   };
+
   if (loading) {
     return <div>Loading history...</div>;
   }
 
   const handleRemoveFromHistory = async (historyId: string) => {
     try {
-      console.log("Removing from history:", historyId);
-
-      setHistory(history.filter((item) => item._id !== historyId));
+      await axiosInstance.delete(`/history/${historyId}`);
+      setHistory(prev => prev.filter((item) => item._id !== historyId));
+      toast.success("Removed from history");
     } catch (error) {
       console.error("Error removing from history:", error);
+      toast.error("Failed to remove from history");
     }
   };
 
@@ -77,7 +91,7 @@ export default function HistoryContent() {
       </div>
     );
   }
-  const videos = "/video/vdo.mp4";
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -87,27 +101,35 @@ export default function HistoryContent() {
       <div className="space-y-4">
         {history.map((item) => (
           <div key={item._id} className="flex gap-4 group">
-            <Link href={`/watch/${item.videoid._id}`} className="flex-shrink-0">
+            <Link href={`/watch/${item.videoid?._id}`} className="flex-shrink-0">
               <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden">
-                <video
-                  src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/${item.videoid?.filepath}`}
-                  className="object-cover group-hover:scale-105 transition-transform duration-200"
-                />
+                {item.videoid?.youtubeId ? (
+                   <img 
+                      src={`https://img.youtube.com/vi/${item.videoid.youtubeId}/mqdefault.jpg`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      alt={item.videoid.videotitle}
+                   />
+                ) : (
+                  <video
+                    src={`${process.env.NEXT_PUBLIC_BACKEND_URL}/${item.videoid?.filepath}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                  />
+                )}
               </div>
             </Link>
 
             <div className="flex-1 min-w-0">
-              <Link href={`/watch/${item.videoid._id}`}>
+              <Link href={`/watch/${item.videoid?._id}`}>
                 <h3 className="font-medium text-sm line-clamp-2 group-hover:text-blue-600 mb-1">
-                  {item.videoid.videotitle}
+                  {item.videoid?.videotitle}
                 </h3>
               </Link>
               <p className="text-sm text-gray-600">
-                {item.videoid.videochanel}
+                {item.videoid?.videochanel || "Unknown Channel"}
               </p>
               <p className="text-sm text-gray-600">
-                {item.videoid.views.toLocaleString()} views •{" "}
-                {safeTimeAgo(item.videoid.createdAt)}
+                {safeNumber(item.videoid?.views)} views •{" "}
+                {safeTimeAgo(item.videoid?.createdAt)}
               </p>
               <p className="text-xs text-gray-500 mt-1">
                 Added {safeTimeAgo(item.createdAt)}

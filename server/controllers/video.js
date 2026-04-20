@@ -2,23 +2,29 @@ import mongoose from "mongoose";
 import video from "../Modals/video.js";
 import users from "../Modals/Auth.js";
 import downloadModel from "../Modals/download.js";
+import path from "path";
+import fs from "fs";
 
 export const uploadvideo = async (req, res) => {
-  if (req.file === undefined) {
+  if (req.files === undefined || req.files.file === undefined) {
     return res
       .status(404)
-      .json({ message: "plz upload a mp4 video file only" });
+      .json({ message: "plz upload a mp4 video file" });
   }
 
   try {
+    const videoFile = req.files.file[0];
+    const thumbnailFile = req.files.thumbnail ? req.files.thumbnail[0] : null;
+
     const file = new video({
       videotitle: req.body.videotitle,
-      filename: req.file.originalname,
-      filepath: req.file.path,
-      filetype: req.file.mimetype,
-      filesize: req.file.size,
+      filename: videoFile.originalname,
+      filepath: videoFile.path,
+      filetype: videoFile.mimetype,
+      filesize: videoFile.size,
       videochanel: req.body.videochanel,
       uploader: req.body.uploader,
+      thumbnailPath: thumbnailFile ? thumbnailFile.path : null,
     });
     await file.save();
     return res.status(201).json("file uploaded successfully");
@@ -30,7 +36,7 @@ export const uploadvideo = async (req, res) => {
 
 export const getallvideo = async (req, res) => {
   try {
-    const files = await video.find();
+    const files = await video.find().populate("uploader");
     return res.status(200).send(files);
   } catch (error) {
     console.error(" error:", error);
@@ -49,43 +55,107 @@ export const requestVideoDownload = async (req, res) => {
   const { videoId } = req.params;
   const { userId } = req.body;
 
-  if (!mongoose.Types.ObjectId.isValid(videoId) || !mongoose.Types.ObjectId.isValid(userId)) {
+  // For sample videos, videoId might be "music-1" etc.
+  const isSampleVideo = 
+    videoId.startsWith("music-") || 
+    videoId.startsWith("gaming-") || 
+    videoId.startsWith("movies-") || 
+    videoId.startsWith("news-") ||
+    videoId.startsWith("sports-") ||
+    videoId.startsWith("tech-") ||
+    videoId.startsWith("comedy-") ||
+    videoId.startsWith("education-") ||
+    videoId.startsWith("science-") ||
+    videoId.startsWith("travel-") ||
+    videoId.startsWith("food-") ||
+    videoId.startsWith("fashion-");
+
+  const isValidVideoId = isSampleVideo || mongoose.Types.ObjectId.isValid(videoId);
+
+  if (!isValidVideoId || !mongoose.Types.ObjectId.isValid(userId)) {
     return res.status(400).json({ message: "Invalid request" });
   }
 
   try {
-    const [targetVideo, user] = await Promise.all([
-      video.findById(videoId),
-      users.findById(userId),
-    ]);
+    let targetVideo = null;
+    let user = await users.findById(userId);
 
-    if (!targetVideo || !user) {
-      return res.status(404).json({ message: "Video or user not found" });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
-    if (!user.isPremiumDownloader) {
+    if (isSampleVideo) {
+       // Check if sample video exists in database (user-uploaded samples)
+       // or just handle as virtual sample
+       targetVideo = await video.findOne({ _id: videoId }).catch(() => null);
+    } else {
+       targetVideo = await video.findById(videoId);
+    }
+
+    if (!targetVideo && isSampleVideo) {
+       // Fallback for sample videos missing from DB
+       // We still want to record the download
+       const entry = await downloadModel.findOneAndUpdate(
+         { userid: userId, videoid: videoId },
+         { $set: { downloadedAt: new Date() } },
+         { upsert: true, new: true }
+       );
+
+        return res.status(200).json({
+          success: true,
+          download: entry,
+          fileUrl: null,
+          message: "Saved to your offline library! You can find it in the Downloads page.",
+          title: videoId,
+          isSample: true,
+        });
+    }
+
+    if (!targetVideo) {
+      return res.status(404).json({ message: "Video not found" });
+    }
+
+    // 1. Duplicate Check for In-App Library
+    const existing = await downloadModel.findOne({ userid: userId, videoid: videoId });
+    if (existing) {
+      return res.status(200).json({
+        success: true,
+        alreadyExists: true,
+        message: "This video is already in your downloads section!",
+        title: targetVideo ? targetVideo.videotitle : videoId,
+      });
+    }
+
+    // 2. Premium Limit Check
+    // Bronze (Rank 1) and above, or legacy isPremiumDownloader get unlimited
+    const isPremium = user.isPremiumDownloader || (user.plan && user.plan !== "FREE");
+    
+    if (!isPremium) {
       const { start, end } = getTodayRange();
       const todayCount = await downloadModel.countDocuments({
         userid: userId,
         downloadedAt: { $gte: start, $lt: end },
       });
-      if (todayCount >= 1) {
+      if (todayCount >= 1) { // Free users get 1 download per day
         return res.status(403).json({
-          message: "Free users can download only one video per day. Upgrade to premium for unlimited downloads.",
+          message: "Free users can save only 1 video to library per day. Upgrade to premium for unlimited!",
         });
       }
     }
 
+    // 3. Add to In-App Library
     const entry = await downloadModel.create({
       userid: userId,
       videoid: videoId,
+      downloadedAt: new Date(),
     });
 
     return res.status(200).json({
       success: true,
       download: entry,
-      fileUrl: `${process.env.BACKEND_URL}/${targetVideo.filepath}`,
-      title: targetVideo.videotitle,
+      message: "Successfully added to your downloads section! You can view it in the sidebar.",
+      title: targetVideo ? targetVideo.videotitle : (isSampleVideo ? videoId : "Unknown Video"),
+      isSample: isSampleVideo,
     });
   } catch (error) {
     console.error(error);
@@ -103,12 +173,69 @@ export const getUserDownloads = async (req, res) => {
   try {
     const downloads = await downloadModel
       .find({ userid: userId })
-      .populate({ path: "videoid", model: "videofiles" })
-      .sort({ downloadedAt: -1 });
+      .lean();
 
-    return res.status(200).json(downloads);
+    // Populate manually to handle both ObjectIds and sample Strings
+    const populatedDownloads = await Promise.all(downloads.map(async (item) => {
+      if (mongoose.Types.ObjectId.isValid(item.videoid)) {
+        item.videoid = await video.findById(item.videoid);
+      } else {
+        // It's a sample video ID string
+        // We'll return it as is, and the frontend will resolve it from its own sample list
+      }
+      return item;
+    }));
+
+    return res.status(200).json(populatedDownloads);
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const downloadVideoStream = async (req, res) => {
+  const { videoId } = req.params;
+
+  try {
+    if (!mongoose.Types.ObjectId.isValid(videoId)) {
+      return res.status(400).json({ message: "Invalid video id for real download" });
+    }
+
+    const targetVideo = await video.findById(videoId);
+    if (!targetVideo || !targetVideo.filepath) {
+      return res.status(404).json({ message: "Video file not found" });
+    }
+
+    const absolutePath = path.resolve(targetVideo.filepath);
+    
+    if (!fs.existsSync(absolutePath)) {
+      return res.status(404).json({ message: "Physical file missing on server" });
+    }
+
+    const fileName = targetVideo.filename || `${targetVideo.videotitle}.mp4`;
+    
+    res.download(absolutePath, fileName, (err) => {
+      if (err) {
+        console.error("Download error:", err);
+        if (!res.headersSent) {
+          res.status(500).send("Error downloading file");
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Stream download error:", error);
+    res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+export const checkDownloadStatus = async (req, res) => {
+  const { videoId, userId } = req.body;
+  if (!videoId || !userId) return res.status(200).json({ downloaded: false });
+
+  try {
+    const existing = await downloadModel.findOne({ userid: userId, videoid: videoId });
+    return res.status(200).json({ downloaded: !!existing });
+  } catch (error) {
+    return res.status(200).json({ downloaded: false });
   }
 };
