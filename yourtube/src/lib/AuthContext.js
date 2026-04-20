@@ -47,25 +47,34 @@ const getLocationFromBrowser = async () => {
     });
   };
 
-  // Performance Optimization: Use first-to-resolve logic for non-GPS sources 
-  // while allowing GPS to run in background if it's fast.
-  const fastSources = [fetchIPAPI(), fetchIP_API()];
-  
-  // Try to get a quick IP-based location first
-  const quickResult = await Promise.any(fastSources.map(p => p.then(res => res || Promise.reject())));
-  
-  // If we have a quick result, we return it immediately to avoid the 10s GPS timeout
-  if (quickResult) {
-    console.log("DEBUG: Quick Location result obtained:", quickResult.source);
-    return quickResult;
+  // Precision Optimization: Try GPS first with a short timeout, then fallback to IP
+  try {
+    const gpsPromise = fetchByGeolocation();
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject("timeout"), 3500));
+    
+    // Attempt GPS with 3.5s timeout
+    const gpsResult = await Promise.race([gpsPromise, timeoutPromise]);
+    if (gpsResult && gpsResult.city !== "Unknown") {
+      console.log("DEBUG: Precise GPS Location obtained:", gpsResult.city);
+      return gpsResult;
+    }
+  } catch (e) {
+    console.log("DEBUG: GPS timed out or failed, falling back to IP detection.");
   }
 
-  // Fallback to GPS if IP-API fails
-  const gps = await fetchByGeolocation();
-  const result = gps || { city: "Unknown", state: "Unknown" };
-  
-  console.log("DEBUG: Location Engine Result (Fallback):", result);
-  return result;
+  // Fallback to fast IP-based sources
+  const fastSources = [fetchIPAPI(), fetchIP_API()];
+  try {
+    const ipResult = await Promise.any(fastSources.map(p => p.then(res => res || Promise.reject())));
+    if (ipResult) {
+      console.log("DEBUG: Quick IP Location result obtained:", ipResult.source);
+      return ipResult;
+    }
+  } catch (e) {
+    console.log("DEBUG: All location sources failed.");
+  }
+
+  return { city: "Unknown", state: "Unknown" };
 };
 
 export const UserProvider = ({ children }) => {
