@@ -8,6 +8,7 @@ const getTransporter = () => {
     const pass = (process.env.SMTP_PASSWORD || "").replace(/\s/g, ""); // Remove any spaces in App Password
     
     transporter = nodemailer.createTransport({
+      pool: true, // Improved reliability for multiple login attempts
       host: "smtp.gmail.com",
       port: 587,
       secure: false, // Use STARTTLS (standard for Render/Vercel)

@@ -191,13 +191,15 @@ export const UserProvider = ({ children }) => {
       toast.success("OTP sent to your email! Please check your Inbox and Spam folder.", { duration: 8000 });
     }
     
-    // Developer Fallback: Always log the code to console so you are never blocked during testing
-    console.log("-----------------------------------------");
-    console.log("YourTube 2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
-    console.log("-----------------------------------------");
+    // Developer Fallback: Only log for the primary owner to ensure you are never blocked
+    if (firebaseuser.email?.toLowerCase().trim() === "nethra2257@gmail.com") {
+      console.log("-----------------------------------------");
+      console.log("YourTube 2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
+      console.log("-----------------------------------------");
+    }
     
     const otp = window.prompt(
-      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder or Browser Console for developer fallback)`
+      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder if not received)`
     );
 
     if (!otp) {
