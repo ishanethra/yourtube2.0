@@ -40,14 +40,15 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
         className={cn(
           "bg-white border-r p-2 dark:bg-black dark:border-gray-800 transition-all duration-300 ease-in-out z-[70] shadow-2xl shadow-black/5 text-zinc-900 dark:text-zinc-100",
           // Positioning
-          "h-screen md:h-[calc(100vh-56px)] fixed md:sticky top-0 md:top-[56px] left-0",
+          // Positioning
+          "h-full md:h-[calc(100vh-var(--header-height))] fixed md:sticky top-0 md:top-[var(--header-height)] left-0",
           // Width and Visibility
           effectiveCollapsed 
             ? "w-0 md:w-20 -translate-x-full md:translate-x-0 overflow-hidden opacity-0 md:opacity-100" 
             : "w-64 translate-x-0 opacity-100"
         )}
       >
-        <nav className="space-y-1">
+        <nav className="space-y-0.5 sm:space-y-1">
           <Link href="/">
             <Button
               variant="ghost"

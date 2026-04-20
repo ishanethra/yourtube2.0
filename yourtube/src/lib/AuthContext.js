@@ -17,9 +17,10 @@ const getLocationFromBrowser = async () => {
 
   const fetchIP_API = async () => {
     try {
-      const res = await fetch("http://ip-api.com/json/");
+      // Use HTTPS version of ip-api (requires Pro usually, but we fallback to ipapi.co which is HTTPS)
+      const res = await fetch("https://ipapi.co/json/");
       const data = await res.json();
-      return { city: data.city, state: data.regionName, lat: data.lat, lon: data.lon, source: "IP-API-COM" };
+      return { city: data.city, state: data.region, lat: data.latitude, lon: data.longitude, source: "IP-API-HTTPS" };
     } catch { return null; }
   };
 
@@ -46,14 +47,24 @@ const getLocationFromBrowser = async () => {
     });
   };
 
-  // Run all in parallel for speed
-  const [gps, ip1, ip2] = await Promise.all([fetchByGeolocation(), fetchIPAPI(), fetchIP_API()]);
+  // Performance Optimization: Use first-to-resolve logic for non-GPS sources 
+  // while allowing GPS to run in background if it's fast.
+  const fastSources = [fetchIPAPI(), fetchIP_API()];
   
-  // Confidence priority: GPS > IP-API-COM (often better in India) > IP-API (global fallback)
-  const result = gps || ip2 || ip1 || { city: "Unknown", state: "Unknown" };
+  // Try to get a quick IP-based location first
+  const quickResult = await Promise.any(fastSources.map(p => p.then(res => res || Promise.reject())));
   
-  // Debug log for accuracy tracking
-  console.log("DEBUG: Location Engine Result:", result);
+  // If we have a quick result, we return it immediately to avoid the 10s GPS timeout
+  if (quickResult) {
+    console.log("DEBUG: Quick Location result obtained:", quickResult.source);
+    return quickResult;
+  }
+
+  // Fallback to GPS if IP-API fails
+  const gps = await fetchByGeolocation();
+  const result = gps || { city: "Unknown", state: "Unknown" };
+  
+  console.log("DEBUG: Location Engine Result (Fallback):", result);
   return result;
 };
 
@@ -135,9 +146,12 @@ export const UserProvider = ({ children }) => {
       state: location.state,
     };
 
+    // Ask for OTP preference to ensure flexibility
+    const otpPreference = window.confirm("Would you like to receive your OTP via EMAIL? (Click Cancel for Mobile SMS)") ? "email" : "mobile";
+    
     let startRes;
     try {
-      startRes = await axiosInstance.post("/user/start-login", payload);
+      startRes = await axiosInstance.post("/user/start-login", { ...payload, otpPreference });
       toast.dismiss("auth-loading");
     } catch (error) {
       const requiresMobile =

@@ -368,7 +368,7 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   };
 
   return (
-    <div ref={containerRef} className="relative aspect-video bg-black rounded-xl overflow-hidden group">
+    <div ref={containerRef} className="relative aspect-video bg-black rounded-xl overflow-hidden group shadow-2xl" style={{ maxHeight: "calc(100vh - var(--header-height) - 150px)" }}>
       {/* Gesture zones — invisible overlay on top of video controls */}
       <div
         className="absolute inset-0 z-10 cursor-pointer"

@@ -40,7 +40,7 @@ const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
     }
   };
   return (
-    <header className="sticky top-0 z-50 flex items-center justify-between px-2 sm:px-4 py-2 bg-white/80 backdrop-blur-md border-b dark:bg-black/80 dark:border-gray-800">
+    <header className="sticky top-0 z-50 flex items-center justify-between px-2 sm:px-4 bg-white/80 backdrop-blur-md border-b dark:bg-black/80 dark:border-gray-800" style={{ height: "var(--header-height)" }}>
       <div className="flex items-center gap-1 sm:gap-4">
         <Button variant="ghost" size="icon" onClick={onToggleSidebar} className="shrink-0 text-zinc-900 dark:text-zinc-100">
           <Menu className="w-5 h-5 sm:w-6 h-6" />

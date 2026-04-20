@@ -94,8 +94,8 @@ const WatchVideoPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black">
-      <div className="max-w-7xl mx-auto p-4">
+    <div className="bg-white dark:bg-black w-full">
+      <div className="w-full h-full p-2 sm:p-4 md:p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-4">
             <GestureVideoPlayer
