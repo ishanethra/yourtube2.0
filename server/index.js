@@ -7,6 +7,14 @@ import mongoose from "mongoose";
 import http from "http";
 import { Server } from "socket.io";
 import path from "path";
+
+import userroutes from "./routes/auth.js";
+import videoroutes from "./routes/video.js";
+import likeroutes from "./routes/like.js";
+import watchlaterroutes from "./routes/watchlater.js";
+import historyroutes from "./routes/history.js";
+import commentroutes from "./routes/comment.js";
+import paymentroutes from "./routes/payment.js";
 const app = express();
 const server = http.createServer(app);
 
