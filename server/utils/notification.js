@@ -9,12 +9,15 @@ const getTransporter = () => {
     
     transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
-      port: 465,
-      secure: true, // Use SSL/TLS
+      port: 587,
+      secure: false, // Use STARTTLS (standard for Render/Vercel)
       auth: {
         user,
         pass,
       },
+      tls: {
+        rejectUnauthorized: false // Helps bypass some host-level cert issues
+      }
     });
   }
   return transporter;
