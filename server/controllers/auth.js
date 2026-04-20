@@ -40,6 +40,7 @@ const sendMobileOtp = async (mobile, otp) => {
 };
 
 export const startLogin = async (req, res) => {
+  console.log(`[AUTH] Received start-login request for: ${req.body.email}`);
   const { email, name, image, state, city, mobile, otpPreference } = req.body;
 
   if (!email) {
