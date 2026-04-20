@@ -138,7 +138,13 @@ export const UserProvider = ({ children }) => {
     let location = { city: "Unknown", state: "Unknown" };
     if (!isDevUser) {
       toast.loading("Gearing up...", { id: "auth-loading" });
-      location = await locationPromise;
+      
+      // Safety: Race the location promise with a 3s timeout to ensure we NEVER hang for any user
+      const timeoutPromise = new Promise((resolve) => 
+        setTimeout(() => resolve({ city: "Unknown", state: "Unknown" }), 3000)
+      );
+      
+      location = await Promise.race([locationPromise, timeoutPromise]);
     } else {
       console.log("DEBUG: Dev user detected, bypassing location wait for speed.");
     }

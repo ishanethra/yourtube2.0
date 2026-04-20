@@ -57,10 +57,10 @@ async function fetchPreciseCity(user?: any): Promise<string> {
 
   const fetchIP_API = async () => {
     try {
-      // lang=en ensures city names are returned in English
-      const res = await fetch("http://ip-api.com/json/?lang=en");
+      // Use HTTPS version (ipapi.co is a reliable fallback for ip-api's free tier)
+      const res = await fetch("https://ipapi.co/json/");
       const data = await res.json();
-      return data.city || data.regionName || "Unknown";
+      return data.city || data.region || "Unknown";
     } catch { return "Unknown"; }
   };
 
@@ -91,7 +91,7 @@ async function fetchPreciseCity(user?: any): Promise<string> {
           } catch { resolve("Unknown"); }
         },
         () => resolve("Unknown"),
-        { timeout: 5000, enableHighAccuracy: true }
+        { timeout: 800, enableHighAccuracy: true }
       );
     });
   };
