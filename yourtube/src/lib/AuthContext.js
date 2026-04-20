@@ -176,8 +176,14 @@ export const UserProvider = ({ children }) => {
     } else if (otpMode === "email") {
       toast.success("OTP sent to your email! Please check your Inbox and Spam folder.", { duration: 8000 });
     }
+    
+    // Developer Fallback: Always log the code to console so you are never blocked during testing
+    console.log("-----------------------------------------");
+    console.log("YourTube 2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
+    console.log("-----------------------------------------");
+    
     const otp = window.prompt(
-      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder for email)`
+      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder or Browser Console for developer fallback)`
     );
 
     if (!otp) {

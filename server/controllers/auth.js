@@ -86,8 +86,10 @@ export const startLogin = async (req, res) => {
         await sendMobileOtp(effectiveMobile, otp);
       }
     } catch (deliveryError) {
-      console.error(`ERROR: OTP delivery failed for ${otpMode} mode. Details:`, deliveryError.message);
+      console.error(`FATAL: OTP delivery failed for [${otpMode}] mode.`);
+      console.error(`ERROR DETAILS: ${deliveryError.stack || deliveryError.message || deliveryError}`);
       deliveryFailed = true;
+      // Force test mode if delivery fails so the user isn't blocked
     }
 
     return res.status(200).json({

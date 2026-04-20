@@ -4,11 +4,16 @@ let transporter;
 
 const getTransporter = () => {
   if (!transporter) {
+    const user = (process.env.SMTP_EMAIL || "").trim();
+    const pass = (process.env.SMTP_PASSWORD || "").replace(/\s/g, ""); // Remove any spaces in App Password
+    
     transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // Use SSL/TLS
       auth: {
-        user: process.env.SMTP_EMAIL,
-        pass: process.env.SMTP_PASSWORD,
+        user,
+        pass,
       },
     });
   }
