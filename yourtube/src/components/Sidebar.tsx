@@ -16,21 +16,35 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import Channeldialogue from "./channeldialogue";
 import { useUser } from "@/lib/AuthContext";
+import { useRouter } from "next/router";
 
-const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
+const Sidebar = ({ collapsed = false, onClose }: { collapsed?: boolean; onClose?: () => void }) => {
   const { user } = useUser();
+  const router = useRouter();
 
   const [isHovered, setIsHovered] = useState(false);
   const [isdialogeopen, setisdialogeopen] = useState(false);
 
   const effectiveCollapsed = collapsed && !isHovered;
+  const handleNavClick = () => {
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches) {
+      onClose?.();
+    }
+  };
+
+  React.useEffect(() => {
+    const handleRouteChange = () => handleNavClick();
+    router.events?.on("routeChangeComplete", handleRouteChange);
+    return () => router.events?.off("routeChangeComplete", handleRouteChange);
+  }, [router.events]);
+
   return (
     <>
       {/* Mobile Overlay - Only visible when not collapsed on small screens */}
       {!effectiveCollapsed && (
         <div 
           className="fixed inset-0 bg-white/20 dark:bg-black/40 backdrop-blur-[2px] z-[60] md:hidden transition-opacity duration-300"
-          onClick={() => {}} // Integration with toggle in _app will manage this
+          onClick={() => onClose?.()}
         />
       )}
       
@@ -54,6 +68,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
               variant="ghost"
               className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
               title="Home"
+              onClick={handleNavClick}
             >
               <Home className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
               {!effectiveCollapsed && "Home"}
@@ -64,6 +79,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
               variant="ghost"
               className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
               title="Explore"
+              onClick={handleNavClick}
             >
               <Compass className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
               {!effectiveCollapsed && "Explore"}
@@ -74,6 +90,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
               variant="ghost"
               className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
               title="Subscriptions"
+              onClick={handleNavClick}
             >
               <PlaySquare className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
               {!effectiveCollapsed && "Subscriptions"}
@@ -87,6 +104,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="History"
+                  onClick={handleNavClick}
                 >
                   <History className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "History"}
@@ -97,6 +115,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="Liked videos"
+                  onClick={handleNavClick}
                 >
                   <ThumbsUp className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "Liked videos"}
@@ -107,6 +126,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="Watch later"
+                  onClick={handleNavClick}
                 >
                   <Clock className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "Watch later"}
@@ -117,6 +137,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="Downloads"
+                  onClick={handleNavClick}
                 >
                   <Download className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "Downloads"}
@@ -127,6 +148,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="Upgrade plans"
+                  onClick={handleNavClick}
                 >
                   <Crown className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "Upgrade Plans"}
@@ -137,6 +159,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="Video calls"
+                  onClick={handleNavClick}
                 >
                   <Phone className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "Video Calls"}
@@ -148,6 +171,7 @@ const Sidebar = ({ collapsed = false }: { collapsed?: boolean }) => {
                     variant="ghost"
                     className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                     title="Your channel"
+                    onClick={handleNavClick}
                   >
                     <User className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                     {!effectiveCollapsed && "Your channel"}

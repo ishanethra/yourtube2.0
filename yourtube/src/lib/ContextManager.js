@@ -4,18 +4,25 @@ const ContextManager = createContext({
   theme: "dark",
   locationData: null,
   sidebarCollapsed: false,
-  toggleSidebar: () => {}
+  toggleSidebar: () => {},
+  closeSidebar: () => {},
 });
 
 export const ContextProvider = ({ children }) => {
   const [theme, setTheme] = useState("dark");
   const [locationData, setLocationData] = useState(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.localStorage) {
       const saved = localStorage.getItem("yourtube_sidebar_collapsed");
-      if (saved === "true") setSidebarCollapsed(true);
+      if (saved === "true" || saved === "false") {
+        setSidebarCollapsed(saved === "true");
+      } else {
+        // Default collapsed on small screens, open on desktop.
+        const isSmallScreen = window.matchMedia("(max-width: 767px)").matches;
+        setSidebarCollapsed(isSmallScreen);
+      }
     }
   }, []);
 
@@ -27,6 +34,13 @@ export const ContextProvider = ({ children }) => {
         }
         return newState;
     });
+  };
+
+  const closeSidebar = () => {
+    setSidebarCollapsed(true);
+    if (typeof window !== "undefined" && window.localStorage) {
+      localStorage.setItem("yourtube_sidebar_collapsed", "true");
+    }
   };
 
   const SOUTH_INDIA_STATES = [
@@ -153,7 +167,7 @@ export const ContextProvider = ({ children }) => {
   }, [locationData]);
 
   return (
-    <ContextManager.Provider value={{ theme, locationData, sidebarCollapsed, toggleSidebar }}>
+    <ContextManager.Provider value={{ theme, locationData, sidebarCollapsed, toggleSidebar, closeSidebar }}>
       {children}
     </ContextManager.Provider>
   );
