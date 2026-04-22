@@ -5,7 +5,6 @@ import axiosInstance from "@/lib/axiosinstance";
 import { toast } from "sonner";
 
 const UserContext = createContext();
-const SOUTH_STATES = ["tamil nadu", "kerala", "karnataka", "andhra pradesh", "telangana"];
 
 const getLocationFromBrowser = async () => {
   const fetchIPAPI = async () => {
@@ -134,21 +133,28 @@ export const UserProvider = ({ children }) => {
     if (isAuthLoading) return;
     setIsAuthLoading(true);
     const locationPromise = locationRef.current || getLocationFromBrowser();
-    const isDevUser = firebaseuser.email?.toLowerCase().trim() === "nethra2257@gmail.com";
     
-    // Performance Optimization: If dev user, start login immediately. Otherwise wait briefly for location.
-    let location = { city: "Unknown", state: "Unknown" };
-    if (!isDevUser) {
-      toast.loading("Gearing up...", { id: "auth-loading" });
-      
-      // Safety: Race the location promise with a 3s timeout to ensure we NEVER hang for any user
-      const timeoutPromise = new Promise((resolve) => 
-        setTimeout(() => resolve({ city: "Unknown", state: "Unknown" }), 3000)
-      );
-      
-      location = await Promise.race([locationPromise, timeoutPromise]);
-    } else {
-      console.log("DEBUG: Dev user detected, bypassing location wait for speed.");
+    // Precision-first: always attempt GPS/IP resolution before OTP routing.
+    toast.loading("Gearing up...", { id: "auth-loading" });
+    const timeoutPromise = new Promise((resolve) =>
+      setTimeout(() => resolve({ city: "Unknown", state: "Unknown" }), 5000)
+    );
+    let location = await Promise.race([locationPromise, timeoutPromise]);
+
+    // If active lookup is still unknown, use last precise location cached by ContextManager.
+    if ((!location?.state || location.state === "Unknown") && typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("yourtube_location");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed?.state) {
+            location = {
+              city: parsed.city || location.city || "Unknown",
+              state: parsed.state || location.state || "Unknown",
+            };
+          }
+        }
+      } catch (_) { /* no-op */ }
     }
     
     locationRef.current = null;
@@ -161,19 +167,18 @@ export const UserProvider = ({ children }) => {
       state: location.state,
     };
 
-    const normalizedState = (payload.state || "").toLowerCase().trim();
-    const isSouthIndia =
-      SOUTH_STATES.includes(normalizedState) ||
-      normalizedState.includes("tamil") ||
-      normalizedState.includes("kerala") ||
-      normalizedState.includes("karnataka") ||
-      normalizedState.includes("andhra") ||
-      normalizedState.includes("telangana");
-    
     console.log(`DEBUG: Final Auth Payload -> Email: ${payload.email} | State: ${payload.state} | City: ${payload.city}`);
 
-    if (!isSouthIndia) {
+    let startRes;
+    try {
+      startRes = await axiosInstance.post("/user/start-login", payload);
       toast.dismiss("auth-loading");
+    } catch (error) {
+      throw error;
+    }
+
+    const otpMode = startRes.data.otpMode;
+    if (otpMode === "mobile") {
       const mobile = window.prompt("Enter mobile number with country code for Firebase OTP (example +919876543210)");
       if (!mobile) {
         setIsAuthLoading(false);
@@ -189,21 +194,18 @@ export const UserProvider = ({ children }) => {
         }
         const appVerifier = window.recaptchaVerifier;
         const confirmationResult = await signInWithPhoneNumber(auth, mobile, appVerifier);
-        const otp = window.prompt("Enter the OTP sent to your mobile number");
-
-        if (!otp) {
+        const mobileOtp = window.prompt("Enter the OTP sent to your mobile number");
+        if (!mobileOtp) {
           setIsAuthLoading(false);
           toast.error("Login cancelled: OTP is required");
           return;
         }
 
-        await confirmationResult.confirm(otp);
-
+        await confirmationResult.confirm(mobileOtp);
         const verifyRes = await axiosInstance.post("/user/mobile-login", {
           ...payload,
           mobile,
         });
-
         const userData = verifyRes.data.result;
         login(userData);
         const displayName = userData?.name || userData?.channelname || userData?.email?.split("@")[0] || "User";
@@ -218,15 +220,6 @@ export const UserProvider = ({ children }) => {
       return;
     }
 
-    let startRes;
-    try {
-      startRes = await axiosInstance.post("/user/start-login", payload);
-      toast.dismiss("auth-loading");
-    } catch (error) {
-      throw error;
-    }
-
-    const otpMode = startRes.data.otpMode;
     if (startRes.data.deliveryFailed && startRes.data.debugOtp) {
       toast.info(`OTP delivery failed. Using test OTP: ${startRes.data.debugOtp}`, { duration: 10000 });
     } else if (otpMode === "email") {
@@ -240,9 +233,19 @@ export const UserProvider = ({ children }) => {
       console.log("-----------------------------------------");
     }
     
-    const otp = window.prompt(
-      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder if not received)`
-    );
+    // Browser can suppress prompt when the tab loses focus after Google popup.
+    // Auto-use debug OTP in fallback mode so login doesn't get blocked.
+    let otp = "";
+    if (startRes.data.deliveryFailed && startRes.data.debugOtp) {
+      otp = String(startRes.data.debugOtp);
+    } else {
+      if (typeof window !== "undefined") {
+        window.focus();
+      }
+      otp = window.prompt(
+        `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder if not received)`
+      ) || "";
+    }
 
     if (!otp) {
       setIsAuthLoading(false);
