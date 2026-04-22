@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { Button } from "./ui/button";
-import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/lib/AuthContext";
 import { useAppStatus } from "@/lib/ContextManager";
 import axiosInstance from "@/lib/axiosinstance";
+import { safeTimeAgo } from "@/lib/date";
 import {
   ThumbsUp, ThumbsDown, User, ListFilter, Languages,
   MapPin, AlertCircle, MoreVertical, Edit2, Trash2,
@@ -126,6 +126,11 @@ interface Comment {
   // replies specifically for threaded UI
   replies?: Comment[];
 }
+
+const safeTimestamp = (value?: string | null) => {
+  const parsed = value ? new Date(value).getTime() : NaN;
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 type TranslationState =
   | { status: "idle" }
@@ -296,7 +301,7 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
           </span>
           <div className="w-1 h-1 rounded-full bg-zinc-800" />
           <span className="text-[10px] font-black text-zinc-600 uppercase italic tracking-tight">
-            {formatDistanceToNow(new Date(comment.createdAt || Date.now()))}
+            {safeTimeAgo(comment.createdAt)}
           </span>
           {/* v2.0 Rule: Each comment should also display the user’s exact city name for context */}
           {comment.city ? (
@@ -549,7 +554,7 @@ const Comments = ({ videoId }: { videoId: string }) => {
   const sortedRoots = useMemo(() => {
     return [...nestedComments].sort((a, b) => {
       if (sortBy === "top") return (b.likeCount || 0) - (a.likeCount || 0);
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return safeTimestamp(b.createdAt) - safeTimestamp(a.createdAt);
     });
   }, [nestedComments, sortBy]);
 

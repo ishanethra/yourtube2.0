@@ -8,7 +8,7 @@ declare global {
 }
 import { useUser } from "@/lib/AuthContext";
 import { Button } from "./ui/button";
-import { Crown, LogIn, SkipForward, SkipBack, Play, Pause, MessageSquare, X, Youtube, Maximize, Minimize } from "lucide-react";
+import { Crown, LogIn, SkipForward, SkipBack, Play, Pause, MessageSquare, X, Youtube } from "lucide-react";
 import axiosInstance from "@/lib/axiosinstance";
 import { useRouter } from "next/router";
 import { toast } from "sonner";
@@ -26,7 +26,6 @@ const GestureRipple = ({ side, count }: { side: string; count: number }) => {
     "left-double": "« -10s",
     "left-triple": "💬 Comments",
     "center-single": "⏯",
-    "center-double": "⛶ Fullscreen",
     "center-triple": "⏭ Next",
     "right-double": "+10s »",
     "right-triple": "✕ Close",
@@ -331,20 +330,6 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
           callPlayer('playVideo');
           dispatchSync("play");
         }
-      } else if (count === 2) {
-        // Center Double Tap: Toggle Fullscreen
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => null);
-          toast("📺 Window Mode");
-        } else {
-          if (containerRef.current) {
-            containerRef.current.requestFullscreen().catch((err) => {
-              console.warn("Fullscreen request blocked:", err);
-              toast.error("Fullscreen blocked by browser. Try clicking directly.");
-            });
-            toast("🎥 Full Screen");
-          }
-        }
       } else if (count >= 3) {
         const currentIndex = allVideos.findIndex(v => v._id === video._id);
         if (currentIndex !== -1 && allVideos[currentIndex + 1]) {
@@ -387,7 +372,6 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
           <div className="flex flex-col items-center gap-1">
             {isPaused ? <Play className="w-5 h-5 text-white/30" /> : <Pause className="w-5 h-5 text-white/30" />}
             <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest leading-none">Tap Play</span>
-            <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest mt-1 leading-none">×2 Fullscreen</span>
           </div>
         </div>
         <div className="absolute inset-y-0 right-0 w-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
@@ -395,27 +379,6 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
             <SkipForward className="w-5 h-5 text-white/30" />
             <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">×2 Tap</span>
           </div>
-        </div>
-        <div className="absolute inset-x-0 bottom-0 py-10 px-4 flex justify-between items-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-20 pointer-events-none">
-          <div />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-10 h-10 rounded-full bg-black/20 backdrop-blur-md border border-white/10 text-white pointer-events-auto hover:bg-black/40 hover:scale-110 transition-all"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (document.fullscreenElement) {
-                document.exitFullscreen().catch(() => null);
-                toast("📺 Window Mode");
-              } else if (containerRef.current) {
-                containerRef.current.requestFullscreen().catch(() => null);
-                toast("🎥 Full Screen");
-              }
-            }}
-          >
-            {/* Using a custom icon button for explicit fullscreen control */}
-            <Maximize className="w-5 h-5" />
-          </Button>
         </div>
       </div>
 
@@ -446,7 +409,6 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
         </div>
         <div className="flex flex-col gap-0.5 items-center">
           <span className="text-[8px] text-white/40 font-bold">×1 → Play/Pause</span>
-          <span className="text-[8px] text-white/40 font-bold">×2 → Fullscreen</span>
           <span className="text-[8px] text-white/40 font-bold">×3 → Next</span>
         </div>
         <div className="flex flex-col gap-0.5 items-end">

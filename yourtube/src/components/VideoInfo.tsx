@@ -21,12 +21,12 @@ import {
   Trash2,
   Crown
 } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
 import { useRouter } from "next/router";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { safeTimeAgo } from "@/lib/date";
 
 const VideoInfo = ({ video }: any) => {
   const router = useRouter();
@@ -369,7 +369,7 @@ const VideoInfo = ({ video }: any) => {
           </div>
           <div className="flex items-center gap-2.5 bg-white/[0.03] px-4 py-2 rounded-xl border border-white/5">
              <Activity className="w-3.5 h-3.5 text-zinc-600" />
-             <span className="text-zinc-300">{video.createdAt ? `${formatDistanceToNow(new Date(video.createdAt))}` : "just now"} <span className="text-zinc-600">ago</span></span>
+             <span className="text-zinc-300">{safeTimeAgo(video.createdAt)}</span>
           </div>
           {user?.plan && user.plan !== "FREE" && (
             <div className="flex items-center gap-2.5 bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-500/20 animate-pulse">

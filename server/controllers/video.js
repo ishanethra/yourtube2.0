@@ -78,7 +78,7 @@ export const requestVideoDownload = async (req, res) => {
 
   try {
     let targetVideo = null;
-    let user = await users.findById(userId);
+    const user = await users.findById(userId);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -92,26 +92,7 @@ export const requestVideoDownload = async (req, res) => {
        targetVideo = await video.findById(videoId);
     }
 
-    if (!targetVideo && isSampleVideo) {
-       // Fallback for sample videos missing from DB
-       // We still want to record the download
-       const entry = await downloadModel.findOneAndUpdate(
-         { userid: userId, videoid: videoId },
-         { $set: { downloadedAt: new Date() } },
-         { upsert: true, new: true }
-       );
-
-        return res.status(200).json({
-          success: true,
-          download: entry,
-          fileUrl: null,
-          message: "Saved to your offline library! You can find it in the Downloads page.",
-          title: videoId,
-          isSample: true,
-        });
-    }
-
-    if (!targetVideo) {
+    if (!targetVideo && !isSampleVideo) {
       return res.status(404).json({ message: "Video not found" });
     }
 
@@ -143,7 +124,7 @@ export const requestVideoDownload = async (req, res) => {
       }
     }
 
-    // 3. Add to In-App Library
+    // 3. Add to In-App Library (applies to both uploaded and sample videos)
     const entry = await downloadModel.create({
       userid: userId,
       videoid: videoId,
@@ -153,8 +134,9 @@ export const requestVideoDownload = async (req, res) => {
     return res.status(200).json({
       success: true,
       download: entry,
+      fileUrl: isSampleVideo ? null : undefined,
       message: "Successfully added to your downloads section! You can view it in the sidebar.",
-      title: targetVideo ? targetVideo.videotitle : (isSampleVideo ? videoId : "Unknown Video"),
+      title: targetVideo ? targetVideo.videotitle : videoId,
       isSample: isSampleVideo,
     });
   } catch (error) {
