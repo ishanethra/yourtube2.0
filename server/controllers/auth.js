@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import twilio from "twilio";
 import users from "../Modals/Auth.js";
 import otpModel from "../Modals/otp.js";
 import { SOUTH_STATES } from "../utils/plans.js";
@@ -21,23 +20,6 @@ const getOtpMode = (email = "", state = "") => {
 };
 
 const generateOtp = () => `${Math.floor(100000 + Math.random() * 900000)}`;
-
-const sendMobileOtp = async (mobile, otp) => {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  
-  if (!accountSid || !authToken) {
-    throw new Error("Twilio credentials missing");
-  }
-
-  const client = twilio(accountSid, authToken);
-
-  await client.messages.create({
-    body: `Your YourTube OTP is ${otp}`,
-    from: "+918838733794",
-    to: mobile,
-  });
-};
 
 export const startLogin = async (req, res) => {
   console.log(`[AUTH] Received start-login request for: ${req.body.email}`);
@@ -83,26 +65,24 @@ export const startLogin = async (req, res) => {
           text: `Your OTP is ${otp}. It expires in 5 minutes.`,
           html: `<p>Your OTP is <b>${otp}</b>. It expires in 5 minutes.</p>`,
         });
-      } else {
-        await sendMobileOtp(effectiveMobile, otp);
       }
+      // For mobile mode, OTP is handled by Firebase Phone Auth on frontend.
     } catch (deliveryError) {
       console.error(`FATAL: OTP delivery failed for [${otpMode}] mode.`);
       console.error(`ERROR DETAILS: ${deliveryError.stack || deliveryError.message || deliveryError}`);
       deliveryFailed = true;
-      // Force test mode if delivery fails so the user isn't blocked
     }
 
     return res.status(200).json({
       otpSent: true,
       otpMode,
       deliveryFailed,
-      debugOtp: deliveryFailed ? otp : undefined,
+      debugOtp: otpMode === "email" && deliveryFailed ? otp : undefined,
       message: deliveryFailed
         ? "OTP delivery failed, use fallback OTP shown for testing"
         : otpMode === "email"
         ? "OTP sent to email"
-        : "OTP sent to mobile",
+        : "Proceed with Firebase mobile OTP verification",
       profilePreview: {
         email: cleanEmail,
         name,

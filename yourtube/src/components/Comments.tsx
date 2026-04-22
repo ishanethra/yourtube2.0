@@ -118,6 +118,7 @@ interface Comment {
   city?: string;
   language?: string;
   languageName?: string;
+  detectedLang?: string;
   likeCount?: number;
   dislikeCount?: number;
   likedBy?: string[];
@@ -188,6 +189,7 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
   const [showReply,     setShowReply]     = useState(false);
   const [replyValue,    setReplyValue]    = useState("");
   const [showRepliesUI, setShowRepliesUI] = useState(false);
+  const sourceLangCode = String(comment.language || comment.detectedLang || "en").toLowerCase();
 
   // ── Translate ──────────────────────────────────────────────────────────────
   const handleTranslate = async (lang?: string) => {
@@ -398,7 +400,9 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-h-64 overflow-y-auto w-64 bg-white/95 dark:bg-black/90 backdrop-blur-3xl border border-black/10 dark:border-white/10 rounded-3xl shadow-3xl animate-in zoom-in-95 duration-200 p-2">
               <div className="px-6 py-4 text-[9px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.4em] border-b border-black/5 dark:border-white/5 mb-2 bg-zinc-50 dark:bg-white/[0.02] rounded-t-2xl italic">Translate</div>
-              {Object.entries(LANG_NAMES).map(([code, name]) => (
+              {Object.entries(LANG_NAMES)
+                .filter(([code]) => code.toLowerCase() !== sourceLangCode)
+                .map(([code, name]) => (
                 <DropdownMenuItem key={code} onClick={() => handleTranslate(code)} className="text-[10px] font-black py-4 px-5 rounded-2xl focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all cursor-pointer mb-1 uppercase tracking-widest italic mx-1">
                   <span className="mr-4 text-base flex items-center">{FLAG_MAP[code] || "🌐"}</span> {name}
                 </DropdownMenuItem>

@@ -11,9 +11,12 @@ import { toast } from "sonner";
 import { useUser } from "@/lib/AuthContext";
 import { io, Socket } from "socket.io-client";
 
-const WS_URL = process.env.NEXT_PUBLIC_VOIP_WS_URL || (typeof window !== 'undefined' 
-  ? `${window.location.protocol}//${window.location.hostname}:5000`
-  : 'http://localhost:5000');
+const resolveWsUrl = () => {
+  if (process.env.NEXT_PUBLIC_VOIP_WS_URL) return process.env.NEXT_PUBLIC_VOIP_WS_URL;
+  if (process.env.NEXT_PUBLIC_BACKEND_URL) return process.env.NEXT_PUBLIC_BACKEND_URL;
+  if (typeof window !== "undefined") return `${window.location.protocol}//${window.location.hostname}:5000`;
+  return "http://localhost:5000";
+};
 
 interface VoIPCallManagerProps {
   isOpen: boolean;
@@ -73,7 +76,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const connectWS = (room: string) => {
     if (socketRef.current) socketRef.current.disconnect();
-    const socket = io(WS_URL);
+    const socket = io(resolveWsUrl());
     socketRef.current = socket;
 
     socket.on("connect", () => {
