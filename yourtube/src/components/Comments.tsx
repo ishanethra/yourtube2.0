@@ -44,7 +44,21 @@ const DEFAULT_LANG_CODE = (
 const isLatinText = (str: string) => /^[\u0000-\u024F\s,.\-']+$/.test(str);
 
 async function fetchPreciseCity(user?: any): Promise<string> {
-  // Priority 1: Use stored city – BUT only if it is already in Latin/English script
+  // Priority 1: Use the most precise saved city available before falling back.
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const savedLocation = localStorage.getItem("yourtube_location");
+      if (savedLocation) {
+        const parsed = JSON.parse(savedLocation);
+        const savedCity = parsed?.city || parsed?.town || parsed?.village || parsed?.region;
+        if (savedCity && isLatinText(String(savedCity))) return String(savedCity);
+      }
+    } catch {
+      // Ignore malformed storage and continue to runtime detection.
+    }
+  }
+
+  // Priority 2: Use the user profile city if it is already in Latin/English script.
   if (user?.city && isLatinText(user.city)) return user.city;
 
   const fetchIPAPI = async () => {
@@ -91,7 +105,7 @@ async function fetchPreciseCity(user?: any): Promise<string> {
           } catch { resolve("Unknown"); }
         },
         () => resolve("Unknown"),
-        { timeout: 800, enableHighAccuracy: true }
+        { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
       );
     });
   };
@@ -580,7 +594,7 @@ const Comments = ({ videoId }: { videoId: string }) => {
   );
 
   return (
-    <div id="comments-section" className="space-y-12 pt-16 relative">
+    <div id="comments-section" className="space-y-12 pt-12 sm:pt-16 relative">
       {/* Security Error Modal */}
       {showErrorModal && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-6 animate-in fade-in duration-300">
@@ -636,11 +650,11 @@ const Comments = ({ videoId }: { videoId: string }) => {
 
       {/* Add Comment Input */}
       {user ? (
-        <div className={`group flex gap-6 p-10 rounded-[4rem] transition-all duration-1000 bg-zinc-50 dark:bg-white/[0.01] border border-black/5 dark:border-white/5 relative overflow-hidden ${isFocused ? "bg-zinc-100 dark:bg-white/[0.03] border-black/10 dark:border-white/10 shadow-3xl scale-[1.02]" : "hover:border-black/10 dark:hover:border-white/10"}`}>
+        <div className={`group flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-6 lg:p-10 rounded-[2rem] sm:rounded-[3rem] lg:rounded-[4rem] transition-all duration-1000 bg-zinc-50 dark:bg-white/[0.01] border border-black/5 dark:border-white/5 relative overflow-hidden ${isFocused ? "bg-zinc-100 dark:bg-white/[0.03] border-black/10 dark:border-white/10 shadow-3xl sm:scale-[1.01] lg:scale-[1.02]" : "hover:border-black/10 dark:hover:border-white/10"}`}>
            {/* Focus Flare */}
           <div className={`absolute top-0 right-0 w-64 h-64 bg-zinc-200/50 dark:bg-white/5 blur-[100px] rounded-full transition-opacity duration-1000 ${isFocused ? "opacity-100" : "opacity-0"}`} />
           
-          <Avatar className="h-14 w-14 rounded-2xl border border-black/5 dark:border-white/10 shadow-2xl group-hover:rotate-12 transition-transform duration-700">
+          <Avatar className="h-11 w-11 sm:h-14 sm:w-14 rounded-2xl border border-black/5 dark:border-white/10 shadow-2xl group-hover:rotate-12 transition-transform duration-700">
             {activeChannel ? (
               <div className="w-full h-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-black dark:text-white font-black italic text-xl shadow-inner">{activeChannel.name[0]}</div>
             ) : (
@@ -653,11 +667,11 @@ const Comments = ({ videoId }: { videoId: string }) => {
               value={newComment}
               onFocus={() => setIsFocused(true)}
               onChange={(e) => setNewComment(e.target.value)}
-              className="w-full bg-transparent border-b-2 border-white/5 focus:border-zinc-500 outline-none py-3 text-xl font-bold dark:text-white transition-all placeholder:text-zinc-700 placeholder:italic placeholder:text-xs placeholder:tracking-[0.3em] italic"
+              className="w-full bg-transparent border-b-2 border-white/5 focus:border-zinc-500 outline-none py-3 text-base sm:text-xl font-bold dark:text-white transition-all placeholder:text-zinc-700 placeholder:italic placeholder:text-[10px] sm:placeholder:text-xs placeholder:tracking-[0.2em] sm:placeholder:tracking-[0.3em] italic"
             />
             {isFocused && (
-              <div className="flex justify-between items-center mt-8 animate-in fade-in slide-in-from-top-2 duration-700">
-                <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-5 sm:mt-8 animate-in fade-in slide-in-from-top-2 duration-700">
+                <div className="flex flex-wrap items-center gap-3">
                    <div className="flex items-center gap-2 text-[9px] font-black text-zinc-500 italic bg-white/[0.03] px-3 py-1.5 rounded-full border border-white/5">
                       <MapPin className="w-3 h-3 text-zinc-500" /> {cityFetching ? "City..." : userCity}
                    </div>
@@ -665,9 +679,9 @@ const Comments = ({ videoId }: { videoId: string }) => {
                       <Activity className="w-3 h-3 text-zinc-500" /> Active
                    </div>
                 </div>
-                <div className="flex gap-3">
-                  <Button variant="ghost" size="sm" onClick={() => { setIsFocused(false); setNewComment(""); }} className="rounded-full h-12 px-8 text-[10px] font-black uppercase tracking-widest italic text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors">Cancel</Button>
-                  <Button size="sm" disabled={!newComment.trim() || isSubmitting} onClick={handlePostComment} className="rounded-full bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 px-12 h-12 text-[10px] font-black uppercase tracking-widest italic shadow-3xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button variant="ghost" size="sm" onClick={() => { setIsFocused(false); setNewComment(""); }} className="rounded-full h-11 sm:h-12 px-6 sm:px-8 text-[10px] font-black uppercase tracking-widest italic text-zinc-400 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-colors">Cancel</Button>
+                  <Button size="sm" disabled={!newComment.trim() || isSubmitting} onClick={handlePostComment} className="rounded-full bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 px-8 sm:px-12 h-11 sm:h-12 text-[10px] font-black uppercase tracking-widest italic shadow-3xl transition-all hover:scale-105 active:scale-95 flex items-center gap-3 justify-center">
                     <Sparkles className="w-3.5 h-3.5" /> Comment
                   </Button>
                 </div>

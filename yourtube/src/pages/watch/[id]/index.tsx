@@ -93,6 +93,19 @@ const WatchVideoPage = () => {
     document.getElementById("comments-section")?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const handleStartVideoCall = () => {
+    if (!currentVideo?._id) return;
+    const roomSeed = `watch-${currentVideo._id}`;
+    router.push({
+      pathname: "/calls",
+      query: {
+        room: roomSeed,
+        video: currentVideo._id,
+        title: currentVideo.videotitle,
+      },
+    });
+  };
+
   return (
     <div className="bg-white dark:bg-black w-full">
       <div className="w-full h-full p-2 sm:p-4 md:p-6">
@@ -102,6 +115,7 @@ const WatchVideoPage = () => {
               video={currentVideo}
               allVideos={relatedVideos}
               onOpenComments={handleOpenComments}
+              onStartVideoCall={handleStartVideoCall}
             />
             <VideoInfo video={currentVideo} />
             <div ref={commentRef}>

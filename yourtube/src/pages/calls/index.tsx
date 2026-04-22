@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useRouter } from "next/router";
 import { io, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { 
@@ -21,6 +22,7 @@ const rtcConfig = {
 };
 
 const CallsVideoPage = () => {
+  const router = useRouter();
   const [roomId, setRoomId] = useState("friends-room");
   const [joined, setJoined] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -34,6 +36,13 @@ const CallsVideoPage = () => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  useEffect(() => {
+    const queryRoom = router.query.room;
+    if (typeof queryRoom === "string" && queryRoom.trim()) {
+      setRoomId(queryRoom.trim());
+    }
+  }, [router.query.room]);
 
   const setupPeer = useCallback(() => {
     const peer = new RTCPeerConnection(rtcConfig);
@@ -229,27 +238,27 @@ const CallsVideoPage = () => {
   }, []);
 
   return (
-    <main className="flex-1 p-4 md:p-8 space-y-8 max-w-7xl mx-auto min-h-screen animate-in fade-in duration-700">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <main className="flex-1 p-3 sm:p-4 md:p-8 space-y-6 sm:space-y-8 max-w-7xl mx-auto min-h-screen animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-white dark:via-gray-300 dark:to-white">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 dark:from-white dark:via-gray-300 dark:to-white">
             Premium Video Calls
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 font-medium">Safe, high-quality VoIP communication</p>
+          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium">Safe, high-quality VoIP communication</p>
         </div>
         
-        <div className="flex items-center gap-2 bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-2xl border border-blue-200 dark:border-blue-900/50">
+        <div className="flex items-center gap-2 bg-blue-500/10 dark:bg-blue-400/10 text-blue-600 dark:text-blue-400 px-3 sm:px-4 py-2 rounded-2xl border border-blue-200 dark:border-blue-900/50 w-fit">
           <Users className="w-5 h-5" />
           <span className="text-sm font-semibold">RTC Enabled</span>
         </div>
       </div>
 
-      <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-5 rounded-3xl border border-white/50 dark:border-zinc-800/50 backdrop-blur-xl flex flex-col md:flex-row items-center gap-6 shadow-2xl shadow-indigo-500/5">
+      <div className="bg-gradient-to-br from-indigo-500/10 to-purple-500/10 p-4 sm:p-5 rounded-3xl border border-white/50 dark:border-zinc-800/50 backdrop-blur-xl flex flex-col md:flex-row items-stretch gap-4 sm:gap-6 shadow-2xl shadow-indigo-500/5">
         <div className="flex-1 w-full space-y-2">
           <label className="text-xs font-bold uppercase tracking-widest text-gray-500 ml-1">Room Identity</label>
           <div className="relative group">
             <input
-              className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-5 py-3.5 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none transition-all pr-12 text-lg font-medium shadow-inner"
+              className="w-full bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-2xl px-4 sm:px-5 py-3.5 focus:border-indigo-500 dark:focus:border-indigo-400 outline-none transition-all pr-12 text-base sm:text-lg font-medium shadow-inner"
               value={roomId}
               onChange={(e) => setRoomId(e.target.value)}
               placeholder="friends-room"
@@ -259,44 +268,44 @@ const CallsVideoPage = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto self-end">
+        <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 w-full md:w-auto self-end">
           {!joined ? (
             <Button 
                 onClick={joinRoom}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-10 h-14 font-bold text-lg shadow-xl shadow-indigo-500/20 active:scale-95 transition-all w-full md:w-auto"
+                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl px-6 sm:px-10 h-12 sm:h-14 font-bold text-base sm:text-lg shadow-xl shadow-indigo-500/20 active:scale-95 transition-all w-full md:w-auto"
             >
-              <Phone className="w-5 h-5 mr-3 fill-current" />
+              <Phone className="w-5 h-5 mr-2 sm:mr-3 fill-current" />
               Join Call
             </Button>
           ) : (
             <>
-                <div className="flex items-center gap-2 mr-2">
-                    <Button variant="outline" size="icon" className={cn("rounded-2xl w-12 h-12", isAudioMuted && "bg-red-50 border-red-200 text-red-600")} onClick={toggleAudio}>
+                <div className="grid grid-cols-2 sm:flex items-center gap-2 sm:mr-2">
+                    <Button variant="outline" size="icon" className={cn("rounded-2xl w-11 h-11 sm:w-12 sm:h-12", isAudioMuted && "bg-red-50 border-red-200 text-red-600")} onClick={toggleAudio}>
                         {isAudioMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                     </Button>
-                    <Button variant="outline" size="icon" className={cn("rounded-2xl w-12 h-12", isVideoOff && "bg-red-50 border-red-200 text-red-600")} onClick={toggleVideo}>
+                    <Button variant="outline" size="icon" className={cn("rounded-2xl w-11 h-11 sm:w-12 sm:h-12", isVideoOff && "bg-red-50 border-red-200 text-red-600")} onClick={toggleVideo}>
                         {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
                     </Button>
                 </div>
                 
-                <Button variant="outline" className="rounded-2xl px-6 h-12 font-semibold border-2" onClick={shareScreen}>
+                <Button variant="outline" className="rounded-2xl px-5 sm:px-6 h-11 sm:h-12 font-semibold border-2 w-full sm:w-auto" onClick={shareScreen}>
                     <Monitor className="w-5 h-5 mr-2" />
                     Share
                 </Button>
 
                 {!recording ? (
-                    <Button variant="secondary" className="rounded-2xl px-6 h-12 font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400" onClick={startRecording}>
+                    <Button variant="secondary" className="rounded-2xl px-5 sm:px-6 h-11 sm:h-12 font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:text-emerald-400 w-full sm:w-auto" onClick={startRecording}>
                         <CircleDot className="w-5 h-5 mr-2" />
                         Record
                     </Button>
                 ) : (
-                    <Button variant="destructive" className="rounded-2xl px-6 h-12 font-semibold animate-pulse" onClick={stopRecording}>
+                    <Button variant="destructive" className="rounded-2xl px-5 sm:px-6 h-11 sm:h-12 font-semibold animate-pulse w-full sm:w-auto" onClick={stopRecording}>
                         <CircleDot className="w-5 h-5 mr-2 fill-current" />
                         Stop
                     </Button>
                 )}
 
-                <Button variant="destructive" className="bg-red-500 hover:bg-red-600 rounded-2xl px-6 h-12 font-bold shadow-lg shadow-red-500/20" onClick={() => endCall(true)}>
+                <Button variant="destructive" className="bg-red-500 hover:bg-red-600 rounded-2xl px-5 sm:px-6 h-11 sm:h-12 font-bold shadow-lg shadow-red-500/20 w-full sm:w-auto" onClick={() => endCall(true)}>
                     <PhoneOff className="w-5 h-5 mr-2" />
                     End
                 </Button>
@@ -305,7 +314,7 @@ const CallsVideoPage = () => {
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
         <div className="group space-y-4">
           <div className="flex items-center justify-between px-2">
             <span className="flex items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-zinc-400">
@@ -313,7 +322,7 @@ const CallsVideoPage = () => {
                 You locally
             </span>
           </div>
-          <div className="relative aspect-video rounded-[2.5rem] bg-zinc-100 dark:bg-zinc-900 overflow-hidden border-[8px] border-white dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all group-hover:shadow-indigo-500/10 group-hover:scale-[1.01]">
+          <div className="relative aspect-video rounded-[1.75rem] sm:rounded-[2.5rem] bg-zinc-100 dark:bg-zinc-900 overflow-hidden border-[4px] sm:border-[8px] border-white dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all group-hover:shadow-indigo-500/10 group-hover:scale-[1.01]">
              <video ref={localVideoRef} autoPlay playsInline muted className={cn("w-full h-full object-cover", isVideoOff && "opacity-0")} />
              {isVideoOff && (
                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-100 dark:bg-zinc-900">
@@ -333,7 +342,7 @@ const CallsVideoPage = () => {
                 Friend remotely
             </span>
           </div>
-          <div className="relative aspect-video rounded-[2.5rem] bg-zinc-100 dark:bg-zinc-900 overflow-hidden border-[8px] border-white dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all group-hover:shadow-emerald-500/10 group-hover:scale-[1.01]">
+          <div className="relative aspect-video rounded-[1.75rem] sm:rounded-[2.5rem] bg-zinc-100 dark:bg-zinc-900 overflow-hidden border-[4px] sm:border-[8px] border-white dark:border-zinc-800 shadow-[0_20px_50px_rgba(0,0,0,0.1)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all group-hover:shadow-emerald-500/10 group-hover:scale-[1.01]">
              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
              {!remoteVideoRef.current?.srcObject && (
                  <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -352,12 +361,12 @@ const CallsVideoPage = () => {
         </div>
       </div>
       
-      <div className="mt-12 p-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
+      <div className="mt-10 sm:mt-12 p-5 sm:p-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800">
         <h4 className="flex items-center gap-2 font-bold mb-4 text-zinc-700 dark:text-zinc-300">
             <Info className="w-5 h-5 text-indigo-500" />
             Quick Guides
         </h4>
-        <div className="grid md:grid-cols-2 gap-6 text-sm text-zinc-500 dark:text-zinc-400">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-zinc-500 dark:text-zinc-400">
             <div className="space-y-2">
                 <p className="font-semibold text-zinc-900 dark:text-zinc-100 italic">"How do I share YouTube?"</p>
                 <p>Simple! Open YouTube in a new tab, come back here, click **Share Screen**, and select the **Chrome Tab** where YouTube is playing. Your friend will see the video in HD!</p>

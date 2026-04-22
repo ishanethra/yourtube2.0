@@ -18,6 +18,7 @@ interface GestureVideoPlayerProps {
   video: { _id: string; videotitle: string; filepath: string; youtubeId?: string };
   allVideos?: any[];
   onOpenComments?: () => void;
+  onStartVideoCall?: () => void;
 }
 
 // Ripple animation for gesture feedback
@@ -43,7 +44,7 @@ const GestureRipple = ({ side, count }: { side: string; count: number }) => {
   );
 };
 
-export default function GestureVideoPlayer({ video, allVideos = [], onOpenComments }: GestureVideoPlayerProps) {
+export default function GestureVideoPlayer({ video, allVideos = [], onOpenComments, onStartVideoCall }: GestureVideoPlayerProps) {
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tapTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -265,16 +266,16 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   }, [limitReached, user?.plan]);
 
   // ── Tap gesture handler ──────────────────────────────────────────────────
-  const handleTap = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+  const handleTap = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
 
-    let clientX: number;
-    if ("touches" in e) {
-      clientX = e.changedTouches[0]?.clientX ?? rect.left + rect.width / 2;
-    } else {
-      clientX = (e as React.MouseEvent).clientX;
-    }
+    e.preventDefault();
+    e.stopPropagation();
+
+    const clientX = Number.isFinite(e.clientX) ? e.clientX : rect.left + rect.width / 2;
 
     const relX = clientX - rect.left;
     const third = rect.width / 3;
@@ -355,32 +356,48 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   return (
     <div ref={containerRef} className="relative aspect-video bg-black rounded-xl overflow-hidden group shadow-2xl" style={{ maxHeight: "calc(100vh - var(--header-height) - 150px)" }}>
       {/* Gesture zones — invisible overlay on top of video controls */}
-      <div
-        className="absolute inset-0 z-10 cursor-pointer"
-        onClick={handleTap}
-        onTouchEnd={handleTap}
-        style={{ touchAction: "manipulation" }}
-      >
-        {/* Visual zone hints on hover */}
-        <div className="absolute inset-y-0 left-0 w-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <div className="flex flex-col items-center gap-1">
-            <SkipBack className="w-5 h-5 text-white/30" />
-            <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">×2 Tap</span>
+      {isYouTube && (
+        <div
+          className="absolute inset-0 z-10 cursor-pointer"
+          onPointerUp={handleTap}
+          style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
+        >
+          {/* Visual zone hints on hover */}
+          <div className="absolute inset-y-0 left-0 w-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <div className="flex flex-col items-center gap-1">
+              <SkipBack className="w-5 h-5 text-white/30" />
+              <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">×2 Tap</span>
+            </div>
+          </div>
+          <div className="absolute inset-y-0 left-1/3 right-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <div className="flex flex-col items-center gap-1">
+              {isPaused ? <Play className="w-5 h-5 text-white/30" /> : <Pause className="w-5 h-5 text-white/30" />}
+              <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest leading-none">Tap Play</span>
+            </div>
+          </div>
+          <div className="absolute inset-y-0 right-0 w-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+            <div className="flex flex-col items-center gap-1">
+              <SkipForward className="w-5 h-5 text-white/30" />
+              <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">×2 Tap</span>
+            </div>
           </div>
         </div>
-        <div className="absolute inset-y-0 left-1/3 right-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <div className="flex flex-col items-center gap-1">
-            {isPaused ? <Play className="w-5 h-5 text-white/30" /> : <Pause className="w-5 h-5 text-white/30" />}
-            <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest leading-none">Tap Play</span>
-          </div>
-        </div>
-        <div className="absolute inset-y-0 right-0 w-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-          <div className="flex flex-col items-center gap-1">
-            <SkipForward className="w-5 h-5 text-white/30" />
-            <span className="text-[9px] text-white/20 font-bold uppercase tracking-widest">×2 Tap</span>
-          </div>
-        </div>
-      </div>
+      )}
+
+      {onStartVideoCall && (
+        <button
+          type="button"
+          onPointerUp={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onStartVideoCall();
+          }}
+          className="absolute top-2 right-2 sm:top-4 sm:right-4 z-40 inline-flex items-center gap-2 rounded-full bg-black/75 text-white border border-white/10 px-3 sm:px-4 py-2 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.18em] sm:tracking-[0.2em] shadow-2xl backdrop-blur-md hover:bg-red-600 transition-colors active:scale-95"
+        >
+          <MessageSquare className="w-4 h-4" />
+          Video Call
+        </button>
+      )}
 
       {/* Gesture feedback ripple */}
       {gestureHint && <GestureRipple side={gestureHint.side} count={gestureHint.count} />}
@@ -402,18 +419,18 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
       </div>
 
       {/* Gesture legend */}
-      <div className="absolute bottom-14 left-0 right-0 flex justify-between px-4 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-20">
+      <div className="absolute bottom-3 sm:bottom-14 left-0 right-0 flex justify-between px-3 sm:px-4 pointer-events-none opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-500 z-20">
         <div className="flex flex-col gap-0.5">
-          <span className="text-[8px] text-white/40 font-bold">×2 → -10s</span>
-          <span className="text-[8px] text-white/40 font-bold">×3 → Comments</span>
+          <span className="text-[7px] sm:text-[8px] text-white/40 font-bold">×2 → -10s</span>
+          <span className="text-[7px] sm:text-[8px] text-white/40 font-bold">×3 → Comments</span>
         </div>
         <div className="flex flex-col gap-0.5 items-center">
-          <span className="text-[8px] text-white/40 font-bold">×1 → Play/Pause</span>
-          <span className="text-[8px] text-white/40 font-bold">×3 → Next</span>
+          <span className="text-[7px] sm:text-[8px] text-white/40 font-bold">×1 → Play/Pause</span>
+          <span className="text-[7px] sm:text-[8px] text-white/40 font-bold">×3 → Next</span>
         </div>
         <div className="flex flex-col gap-0.5 items-end">
-          <span className="text-[8px] text-white/40 font-bold">×2 → +10s</span>
-          <span className="text-[8px] text-white/40 font-bold">×3 → Close</span>
+          <span className="text-[7px] sm:text-[8px] text-white/40 font-bold">×2 → +10s</span>
+          <span className="text-[7px] sm:text-[8px] text-white/40 font-bold">×3 → Close</span>
         </div>
       </div>
 
