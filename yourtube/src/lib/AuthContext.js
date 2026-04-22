@@ -233,19 +233,13 @@ export const UserProvider = ({ children }) => {
       console.log("-----------------------------------------");
     }
     
-    // Browser can suppress prompt when the tab loses focus after Google popup.
-    // Auto-use debug OTP in fallback mode so login doesn't get blocked.
     let otp = "";
-    if (startRes.data.deliveryFailed && startRes.data.debugOtp) {
-      otp = String(startRes.data.debugOtp);
-    } else {
-      if (typeof window !== "undefined") {
-        window.focus();
-      }
-      otp = window.prompt(
-        `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder if not received)`
-      ) || "";
+    if (typeof window !== "undefined") {
+      window.focus();
     }
+    otp = window.prompt(
+      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder if not received)`
+    ) || "";
 
     if (!otp) {
       setIsAuthLoading(false);
