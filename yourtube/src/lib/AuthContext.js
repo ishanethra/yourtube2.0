@@ -1,10 +1,11 @@
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+import { onAuthStateChanged, signInWithPopup, signOut, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth";
 import { useState, createContext, useEffect, useContext, useRef } from "react";
 import { provider, auth } from "./firebase";
 import axiosInstance from "@/lib/axiosinstance";
 import { toast } from "sonner";
 
 const UserContext = createContext();
+const SOUTH_STATES = ["tamil nadu", "kerala", "karnataka", "andhra pradesh", "telangana"];
 
 const getLocationFromBrowser = async () => {
   const fetchIPAPI = async () => {
@@ -159,29 +160,70 @@ export const UserProvider = ({ children }) => {
       city: location.city,
       state: location.state,
     };
+
+    const normalizedState = (payload.state || "").toLowerCase().trim();
+    const isSouthIndia =
+      SOUTH_STATES.includes(normalizedState) ||
+      normalizedState.includes("tamil") ||
+      normalizedState.includes("kerala") ||
+      normalizedState.includes("karnataka") ||
+      normalizedState.includes("andhra") ||
+      normalizedState.includes("telangana");
     
     console.log(`DEBUG: Final Auth Payload -> Email: ${payload.email} | State: ${payload.state} | City: ${payload.city}`);
+
+    if (!isSouthIndia) {
+      toast.dismiss("auth-loading");
+      const mobile = window.prompt("Enter mobile number with country code for Firebase OTP (example +919876543210)");
+      if (!mobile) {
+        setIsAuthLoading(false);
+        toast.error("Mobile number is required");
+        return;
+      }
+
+      try {
+        if (!window.recaptchaVerifier) {
+          window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+            size: "invisible",
+          });
+        }
+        const appVerifier = window.recaptchaVerifier;
+        const confirmationResult = await signInWithPhoneNumber(auth, mobile, appVerifier);
+        const otp = window.prompt("Enter the OTP sent to your mobile number");
+
+        if (!otp) {
+          setIsAuthLoading(false);
+          toast.error("Login cancelled: OTP is required");
+          return;
+        }
+
+        await confirmationResult.confirm(otp);
+
+        const verifyRes = await axiosInstance.post("/user/mobile-login", {
+          ...payload,
+          mobile,
+        });
+
+        const userData = verifyRes.data.result;
+        login(userData);
+        const displayName = userData?.name || userData?.channelname || userData?.email?.split("@")[0] || "User";
+        toast.success(`Welcome back, ${displayName}`);
+      } catch (error) {
+        console.error("Firebase mobile OTP login failed", error);
+        toast.error(error?.message || "Mobile OTP verification failed");
+        throw error;
+      } finally {
+        setIsAuthLoading(false);
+      }
+      return;
+    }
 
     let startRes;
     try {
       startRes = await axiosInstance.post("/user/start-login", payload);
       toast.dismiss("auth-loading");
     } catch (error) {
-      const requiresMobile =
-        error?.response?.data?.message?.toLowerCase()?.includes("mobile") ||
-        false;
-      if (!requiresMobile) {
-        throw error;
-      }
-
-      const mobile = window.prompt("Enter mobile number with country code for OTP (example +919876543210)");
-      if (!mobile) {
-        throw new Error("Mobile number is required for OTP");
-      }
-      startRes = await axiosInstance.post("/user/start-login", {
-        ...payload,
-        mobile,
-      });
+      throw error;
     }
 
     const otpMode = startRes.data.otpMode;
@@ -294,6 +336,7 @@ export const UserProvider = ({ children }) => {
 
   return (
     <UserContext.Provider value={{ user, login, logout, refreshUser, handlegooglesignin, isAuthLoading }}>
+      <div id="recaptcha-container"></div>
       {children}
     </UserContext.Provider>
   );

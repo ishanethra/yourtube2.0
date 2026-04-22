@@ -7,6 +7,7 @@ import {
   unsubscribeChannel,
   updateprofile,
   verifyLoginOtp,
+  mobileLogin,
   updateWatchTime,
   getSubscriptionStatus,
   subscribeChannelBody,
@@ -16,6 +17,7 @@ const routes = express.Router();
 
 routes.post("/start-login", startLogin);
 routes.post("/verify-otp", verifyLoginOtp);
+routes.post("/mobile-login", mobileLogin);
 routes.post("/login", login);
 
 // Specific action routes BEFORE generic wildcard :id

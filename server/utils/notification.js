@@ -1,46 +1,46 @@
 import nodemailer from "nodemailer";
 
-let transporter;
-
 const getTransporter = () => {
-  if (!transporter) {
-    const user = (process.env.SMTP_EMAIL || "").trim();
-    const pass = (process.env.SMTP_PASSWORD || "").replace(/\s/g, ""); // Remove any spaces in App Password
-    
-    transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user,
-        pass,
-      },
-      debug: true, // Show SMTP handshake in Render logs
-      logger: true // Comprehensive logging for troubleshooting
-    });
+  const user = (process.env.SMTP_EMAIL || "").trim();
+  const pass = (process.env.SMTP_PASSWORD || "").replace(/\s/g, "");
+  const host = (process.env.SMTP_HOST || "smtp.gmail.com").trim();
+  const port = Number(process.env.SMTP_PORT || 465);
+  const secure = String(process.env.SMTP_SECURE || "true").toLowerCase() === "true";
 
-    // Verification check to catch issues early in Render logs
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error("FATAL: SMTP Connection failed. Check App Password and Render Environment Variables.", error);
-      } else {
-        console.log("SUCCESS: SMTP Server is ready to deliver emails.");
-      }
-    });
-  }
-  return transporter;
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: { user, pass },
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
+    tls: { minVersion: "TLSv1.2" },
+  });
 };
 
 export const sendEmail = async ({ to, subject, text, html }) => {
-  if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) {
+  const smtpEmail = (process.env.SMTP_EMAIL || "").trim();
+  const smtpPass = (process.env.SMTP_PASSWORD || "").replace(/\s/g, "");
+
+  if (!smtpEmail || !smtpPass) {
     console.error("CRITICAL: SMTP credentials missing in server environment variables.");
     throw new Error("SMTP credentials missing");
   }
   
   try {
     const mailer = getTransporter();
-    await mailer.sendMail({ from: process.env.SMTP_EMAIL, to, subject, text, html });
+    await mailer.verify();
+    await mailer.sendMail({
+      from: `"YourTube" <${smtpEmail}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
     console.log(`SUCCESS: OTP Email sent to ${to}`);
   } catch (err) {
-    console.error("FATAL: NodeMailer failed to send email. Potential Gmail block or invalid App Password.", err);
+    console.error("FATAL: NodeMailer failed to send email. Check SMTP_EMAIL, SMTP_PASSWORD, and Gmail App Password settings.", err);
     throw err;
   }
 };

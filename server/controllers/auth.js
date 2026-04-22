@@ -189,6 +189,53 @@ export const verifyLoginOtp = async (req, res) => {
   }
 };
 
+export const mobileLogin = async (req, res) => {
+  const { email, name, image, state, city, mobile } = req.body;
+  if (!email || !mobile) {
+    return res.status(400).json({ message: "Email and mobile are required" });
+  }
+
+  const cleanEmail = email.toLowerCase().trim();
+  try {
+    const otpMode = getOtpMode(cleanEmail, state || "");
+    let existingUser = await users.findOne({ email: cleanEmail });
+
+    if (!existingUser) {
+      existingUser = await users.create({
+        email: cleanEmail,
+        mobile,
+        name,
+        image,
+        state: state || "",
+        city: city || "",
+        loginOtpMode: otpMode,
+        watchLimitMinutes: 5,
+        plan: "FREE",
+      });
+    } else {
+      existingUser = await users.findByIdAndUpdate(
+        existingUser._id,
+        {
+          $set: {
+            name: name || existingUser.name,
+            image: image || existingUser.image,
+            mobile: mobile || existingUser.mobile,
+            state: state || existingUser.state,
+            city: city || existingUser.city,
+            loginOtpMode: otpMode,
+          },
+        },
+        { new: true }
+      );
+    }
+
+    return res.status(200).json({ verified: true, result: existingUser });
+  } catch (error) {
+    console.error("mobile login error:", error);
+    return res.status(500).json({ message: "Unable to complete mobile login" });
+  }
+};
+
 export const login = async (req, res) => {
   const { email, name, image } = req.body;
 
