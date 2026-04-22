@@ -81,6 +81,38 @@ export const UserProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
   const locationRef = useRef(null);
+  const [authPrompt, setAuthPrompt] = useState({
+    open: false,
+    title: "",
+    message: "",
+    placeholder: "",
+    type: "text",
+    submitLabel: "Submit",
+    value: "",
+  });
+  const promptResolverRef = useRef(null);
+
+  const requestAuthInput = ({ title, message, placeholder, type = "text", submitLabel = "Continue" }) =>
+    new Promise((resolve) => {
+      promptResolverRef.current = resolve;
+      setAuthPrompt({
+        open: true,
+        title,
+        message,
+        placeholder,
+        type,
+        submitLabel,
+        value: "",
+      });
+    });
+
+  const closeAuthPrompt = (value = "") => {
+    if (promptResolverRef.current) {
+      promptResolverRef.current(value);
+      promptResolverRef.current = null;
+    }
+    setAuthPrompt((prev) => ({ ...prev, open: false, value: "" }));
+  };
 
   const login = (userdata) => {
     if (!userdata) return;
@@ -179,7 +211,13 @@ export const UserProvider = ({ children }) => {
 
     const otpMode = startRes.data.otpMode;
     if (otpMode === "mobile") {
-      const mobile = window.prompt("Enter mobile number with country code for Firebase OTP (example +919876543210)");
+      const mobile = await requestAuthInput({
+        title: "Mobile Verification",
+        message: "Enter mobile number with country code (example +919876543210)",
+        placeholder: "+919876543210",
+        type: "tel",
+        submitLabel: "Send OTP",
+      });
       if (!mobile) {
         setIsAuthLoading(false);
         toast.error("Mobile number is required");
@@ -194,7 +232,13 @@ export const UserProvider = ({ children }) => {
         }
         const appVerifier = window.recaptchaVerifier;
         const confirmationResult = await signInWithPhoneNumber(auth, mobile, appVerifier);
-        const mobileOtp = window.prompt("Enter the OTP sent to your mobile number");
+        const mobileOtp = await requestAuthInput({
+          title: "Enter OTP",
+          message: "Enter the OTP sent to your mobile number",
+          placeholder: "6-digit OTP",
+          type: "text",
+          submitLabel: "Verify OTP",
+        });
         if (!mobileOtp) {
           setIsAuthLoading(false);
           toast.error("Login cancelled: OTP is required");
@@ -232,14 +276,14 @@ export const UserProvider = ({ children }) => {
       console.log("YourTube 2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
       console.log("-----------------------------------------");
     }
-    
-    let otp = "";
-    if (typeof window !== "undefined") {
-      window.focus();
-    }
-    otp = window.prompt(
-      `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. (Check SPAM folder if not received)`
-    ) || "";
+
+    const otp = await requestAuthInput({
+      title: "Enter OTP",
+      message: `Enter the OTP sent to your ${otpMode === "email" ? "email" : "mobile"}. Check SPAM folder if not received.`,
+      placeholder: "6-digit OTP",
+      type: "text",
+      submitLabel: "Verify OTP",
+    });
 
     if (!otp) {
       setIsAuthLoading(false);
@@ -331,9 +375,53 @@ export const UserProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (promptResolverRef.current) {
+        promptResolverRef.current("");
+        promptResolverRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <UserContext.Provider value={{ user, login, logout, refreshUser, handlegooglesignin, isAuthLoading }}>
       <div id="recaptcha-container"></div>
+      {authPrompt.open && (
+        <div className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 space-y-4 shadow-2xl">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{authPrompt.title}</h2>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">{authPrompt.message}</p>
+            <input
+              autoFocus
+              type={authPrompt.type}
+              value={authPrompt.value}
+              onChange={(e) => setAuthPrompt((prev) => ({ ...prev, value: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") closeAuthPrompt(authPrompt.value.trim());
+              }}
+              className="w-full rounded-xl border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-950 px-4 py-3 text-zinc-900 dark:text-zinc-100 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={authPrompt.placeholder}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => closeAuthPrompt("")}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => closeAuthPrompt(authPrompt.value.trim())}
+                className="rounded-xl px-4 py-2 text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+              >
+                {authPrompt.submitLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {children}
     </UserContext.Provider>
   );
