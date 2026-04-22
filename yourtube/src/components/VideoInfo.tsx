@@ -117,17 +117,10 @@ const VideoInfo = ({ video }: any) => {
     try {
       const res = await axiosInstance.post(`/like/like/${video._id}`, { userId: user?._id });
       if (res.status === 200) {
-        if (isLiked) {
-          setlikes((prev: any) => prev - 1);
-          setIsLiked(false);
-        } else {
-          setlikes((prev: any) => prev + 1);
-          setIsLiked(true);
-          if (isDisliked) {
-            setDislikes((prev: any) => prev - 1);
-            setIsDisliked(false);
-          }
-        }
+        setlikes(Number(res.data?.totalLikes ?? 0));
+        setDislikes(Number(res.data?.totalDislikes ?? 0));
+        setIsLiked(res.data?.action !== "removed" && res.data?.type === "like");
+        setIsDisliked(false);
       }
     } catch (error) { console.log(error); }
   };
@@ -137,17 +130,10 @@ const VideoInfo = ({ video }: any) => {
     try {
       const res = await axiosInstance.post(`/like/dislike/${video._id}`, { userId: user?._id });
       if (res.status === 200) {
-        if (isDisliked) {
-          setDislikes((prev: any) => prev - 1);
-          setIsDisliked(false);
-        } else {
-          setDislikes((prev: any) => prev + 1);
-          setIsDisliked(true);
-          if (isLiked) {
-            setlikes((prev: any) => prev - 1);
-            setIsLiked(false);
-          }
-        }
+        setlikes(Number(res.data?.totalLikes ?? 0));
+        setDislikes(Number(res.data?.totalDislikes ?? 0));
+        setIsDisliked(res.data?.action !== "removed" && res.data?.type === "dislike");
+        setIsLiked(false);
       }
     } catch (error) { console.log(error); }
   };
