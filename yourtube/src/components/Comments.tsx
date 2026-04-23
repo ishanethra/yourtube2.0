@@ -335,14 +335,14 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
         {isEditing ? (
           <div className="mt-4 space-y-4">
             <textarea
-              className="w-full bg-white/[0.02] border border-white/10 focus:border-zinc-500 outline-none text-[15px] p-6 rounded-[2rem] text-white resize-none min-h-[120px] font-bold italic"
+              className="w-full bg-zinc-50 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/10 focus:border-zinc-500 outline-none text-[15px] p-6 rounded-[2rem] text-black dark:text-white resize-none min-h-[120px] font-bold italic"
               value={editValue}
               onChange={(e) => setEditValue(e.target.value)}
               autoFocus
             />
             <div className="flex justify-end gap-3">
               <Button size="sm" variant="ghost" onClick={() => setIsEditing(false)} className="rounded-full text-[10px] font-black uppercase tracking-widest italic text-zinc-500">Cancel</Button>
-              <Button size="sm" onClick={handleEditSave} className="rounded-full bg-white text-black hover:bg-zinc-200 hover:text-black px-8 h-10 text-[10px] font-black uppercase tracking-widest italic">Save</Button>
+              <Button size="sm" onClick={handleEditSave} className="rounded-full bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:text-white dark:hover:text-black px-8 h-10 text-[10px] font-black uppercase tracking-widest italic">Save</Button>
             </div>
           </div>
         ) : (
@@ -401,7 +401,7 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
             variant="ghost" 
             size="sm" 
             onClick={() => setShowReply(!showReply)} 
-            className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-500 hover:text-white rounded-2xl h-10 px-6 ml-2 bg-white/[0.02] border border-white/5 hover:bg-white/[0.08] transition-all italic"
+            className="text-[9px] font-black uppercase tracking-[0.4em] text-zinc-600 dark:text-zinc-500 hover:text-black dark:hover:text-white rounded-2xl h-10 px-6 ml-2 bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/[0.08] transition-all italic"
           >
             REPLY
           </Button>
@@ -427,16 +427,16 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
           {isOwner && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-10 w-10 rounded-2xl p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-white/[0.08] bg-white/[0.02] border border-white/5">
+                <Button variant="ghost" size="sm" className="h-10 w-10 rounded-2xl p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-zinc-200 dark:hover:bg-white/[0.08] bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5">
                   <MoreVertical className="w-3.5 h-3.5 text-zinc-500" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 bg-black/90 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-3xl animate-in fade-in zoom-in-95 duration-300 overflow-hidden p-2">
-                <DropdownMenuItem onClick={() => setIsEditing(true)} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 cursor-pointer focus:bg-white focus:text-black transition-all mb-1 uppercase tracking-widest italic">
+              <DropdownMenuContent align="end" className="w-64 bg-white/95 dark:bg-black/90 backdrop-blur-3xl border border-black/10 dark:border-white/10 rounded-3xl shadow-3xl animate-in fade-in zoom-in-95 duration-300 overflow-hidden p-2">
+                <DropdownMenuItem onClick={() => setIsEditing(true)} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 cursor-pointer focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all mb-1 uppercase tracking-widest italic">
                   <Edit2 className="w-4 h-4 text-zinc-500 group-hover:text-black" /> Edit
                 </DropdownMenuItem>
-                <div className="h-px bg-white/5 my-1" />
-                <DropdownMenuItem onClick={handleDelete} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 text-zinc-500 cursor-pointer focus:bg-white focus:text-black transition-all uppercase tracking-widest italic">
+                <div className="h-px bg-black/10 dark:bg-white/5 my-1" />
+                <DropdownMenuItem onClick={handleDelete} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 text-zinc-500 cursor-pointer focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all uppercase tracking-widest italic">
                   <Trash2 className="w-4 h-4" /> Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -446,15 +446,15 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
 
         {/* Reply Input */}
         {showReply && (
-          <div className="flex gap-5 mt-8 p-8 rounded-[3rem] bg-white/[0.02] border border-white/5 animate-in fade-in slide-in-from-top-4 duration-500 relative overflow-hidden group/reply">
+          <div className="flex gap-5 mt-8 p-8 rounded-[3rem] bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 animate-in fade-in slide-in-from-top-4 duration-500 relative overflow-hidden group/reply">
             <div className="absolute top-0 left-0 w-1 h-full bg-zinc-800" />
-            <Avatar className="w-10 h-10 rounded-2xl border border-white/10">
+            <Avatar className="w-10 h-10 rounded-2xl border border-zinc-200 dark:border-white/10">
               <AvatarImage src={user?.image} className="object-cover" />
               <AvatarFallback className="font-black italic bg-zinc-900">{user?.name?.[0]}</AvatarFallback>
             </Avatar>
             <div className="flex-1 space-y-4">
               <input
-                className="w-full bg-transparent border-b border-white/10 focus:border-zinc-500 outline-none text-[15px] py-2 text-white font-bold italic tracking-tight"
+                className="w-full bg-transparent border-b border-zinc-300 dark:border-white/10 focus:border-zinc-500 outline-none text-[15px] py-2 text-black dark:text-white font-bold italic tracking-tight"
                 placeholder="Add a reply..."
                 value={replyValue}
                 onChange={(e) => setReplyValue(e.target.value)}
@@ -462,7 +462,7 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
               />
               <div className="flex justify-end gap-3 pt-2">
                 <Button size="sm" variant="ghost" onClick={() => setShowReply(false)} className="rounded-full text-[9px] font-black uppercase tracking-widest italic text-zinc-500">Cancel</Button>
-                <Button size="sm" onClick={handlePostReply} disabled={!replyValue.trim()} className="rounded-full bg-white text-black hover:bg-zinc-200 hover:text-black px-8 h-10 text-[9px] font-black uppercase tracking-widest italic">Reply</Button>
+                <Button size="sm" onClick={handlePostReply} disabled={!replyValue.trim()} className="rounded-full bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 hover:text-white dark:hover:text-black px-8 h-10 text-[9px] font-black uppercase tracking-widest italic">Reply</Button>
               </div>
             </div>
           </div>
@@ -473,14 +473,14 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
           <div className="mt-6 ml-2">
             <button 
               onClick={() => setShowRepliesUI(!showRepliesUI)}
-              className={`flex items-center gap-3 px-6 py-2.5 rounded-full text-[11px] font-black transition-all uppercase tracking-widest italic ${showRepliesUI ? "bg-white text-black shadow-xl" : "bg-white/[0.03] text-zinc-500 border border-white/5 hover:bg-white/[0.08] hover:text-white"}`}
+              className={`flex items-center gap-3 px-6 py-2.5 rounded-full text-[11px] font-black transition-all uppercase tracking-widest italic ${showRepliesUI ? "bg-black dark:bg-white text-white dark:text-black shadow-xl" : "bg-zinc-100 dark:bg-white/[0.03] text-zinc-600 dark:text-zinc-500 border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/[0.08] hover:text-black dark:hover:text-white"}`}
             >
               {showRepliesUI ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               {comment.replies.length.toString().padStart(2, '0')} REPLIES
             </button>
             {showRepliesUI && (
               <div className="mt-8 space-y-12 pl-6 relative">
-                 <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-white/10 via-white/5 to-transparent" />
+                 <div className="absolute left-0 top-0 bottom-0 w-px bg-gradient-to-b from-black/15 via-black/10 to-transparent dark:from-white/10 dark:via-white/5" />
                 {comment.replies.map((reply) => (
                   <CommentItem key={reply._id} comment={reply} onRefresh={onRefresh} userCity={userCity} isReply={true} setShowErrorModal={setShowErrorModal} />
                 ))}
@@ -578,14 +578,14 @@ const Comments = ({ videoId }: { videoId: string }) => {
 
   if (loading) return (
     <div className="space-y-10 pt-10">
-       <div className="h-8 w-48 bg-white/[0.03] rounded-2xl animate-pulse" />
+       <div className="h-8 w-48 bg-zinc-200 dark:bg-white/[0.03] rounded-2xl animate-pulse" />
        <div className="space-y-6">
           {[...Array(3)].map((_, i) => (
              <div key={i} className="flex gap-5">
-                <div className="w-12 h-12 rounded-2xl bg-white/[0.03] animate-pulse" />
+                <div className="w-12 h-12 rounded-2xl bg-zinc-200 dark:bg-white/[0.03] animate-pulse" />
                 <div className="flex-1 space-y-3 pt-2">
-                   <div className="h-4 w-1/4 bg-white/[0.02] rounded-full animate-pulse" />
-                   <div className="h-10 w-full bg-white/[0.03] rounded-3xl animate-pulse" />
+                   <div className="h-4 w-1/4 bg-zinc-200 dark:bg-white/[0.02] rounded-full animate-pulse" />
+                   <div className="h-10 w-full bg-zinc-200 dark:bg-white/[0.03] rounded-3xl animate-pulse" />
                 </div>
              </div>
           ))}
@@ -617,7 +617,7 @@ const Comments = ({ videoId }: { videoId: string }) => {
         </div>
       )}
       
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-black/10 dark:via-white/10 to-transparent" />
       
       {/* Header: Sort + Count */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
@@ -633,15 +633,15 @@ const Comments = ({ videoId }: { videoId: string }) => {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="flex items-center gap-3 h-12 px-6 rounded-2xl bg-white/[0.02] border border-white/5 font-black text-[10px] uppercase tracking-widest italic hover:bg-white/[0.08] hover:text-white transition-all">
+            <Button variant="ghost" size="sm" className="flex items-center gap-3 h-12 px-6 rounded-2xl bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5 font-black text-[10px] uppercase tracking-widest italic text-zinc-700 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-white/[0.08] hover:text-black dark:hover:text-white transition-all">
               <ListFilter className="w-4 h-4 text-zinc-600" /> Sort by
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="bg-black/90 backdrop-blur-3xl border border-white/10 rounded-3xl shadow-3xl p-2 w-56">
-            <DropdownMenuItem onClick={() => setSortBy("top")} className="text-[10px] font-black py-4 px-5 rounded-2xl focus:bg-white focus:text-black transition-all cursor-pointer mb-1 uppercase tracking-widest italic mx-1">
+          <DropdownMenuContent className="bg-white/95 dark:bg-black/90 backdrop-blur-3xl border border-black/10 dark:border-white/10 rounded-3xl shadow-3xl p-2 w-56">
+            <DropdownMenuItem onClick={() => setSortBy("top")} className="text-[10px] font-black py-4 px-5 rounded-2xl focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all cursor-pointer mb-1 uppercase tracking-widest italic mx-1">
               Top comments
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setSortBy("newest")} className="text-[10px] font-black py-4 px-5 rounded-2xl focus:bg-white focus:text-black transition-all cursor-pointer mb-1 uppercase tracking-widest italic mx-1">
+            <DropdownMenuItem onClick={() => setSortBy("newest")} className="text-[10px] font-black py-4 px-5 rounded-2xl focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all cursor-pointer mb-1 uppercase tracking-widest italic mx-1">
               Newest first
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -667,15 +667,15 @@ const Comments = ({ videoId }: { videoId: string }) => {
               value={newComment}
               onFocus={() => setIsFocused(true)}
               onChange={(e) => setNewComment(e.target.value)}
-              className="w-full bg-transparent border-b-2 border-white/5 focus:border-zinc-500 outline-none py-3 text-base sm:text-xl font-bold dark:text-white transition-all placeholder:text-zinc-700 placeholder:italic placeholder:text-[10px] sm:placeholder:text-xs placeholder:tracking-[0.2em] sm:placeholder:tracking-[0.3em] italic"
+              className="w-full bg-transparent border-b-2 border-zinc-300 dark:border-white/5 focus:border-zinc-500 outline-none py-3 text-base sm:text-xl font-bold text-black dark:text-white transition-all placeholder:text-zinc-600 dark:placeholder:text-zinc-700 placeholder:italic placeholder:text-[10px] sm:placeholder:text-xs placeholder:tracking-[0.2em] sm:placeholder:tracking-[0.3em] italic"
             />
             {isFocused && (
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mt-5 sm:mt-8 animate-in fade-in slide-in-from-top-2 duration-700">
                 <div className="flex flex-wrap items-center gap-3">
-                   <div className="flex items-center gap-2 text-[9px] font-black text-zinc-500 italic bg-white/[0.03] px-3 py-1.5 rounded-full border border-white/5">
+                   <div className="flex items-center gap-2 text-[9px] font-black text-zinc-600 dark:text-zinc-500 italic bg-zinc-200/70 dark:bg-white/[0.03] px-3 py-1.5 rounded-full border border-zinc-300 dark:border-white/5">
                       <MapPin className="w-3 h-3 text-zinc-500" /> {cityFetching ? "City..." : userCity}
                    </div>
-                   <div className="flex items-center gap-2 text-[9px] font-black text-zinc-500 italic bg-white/[0.03] px-3 py-1.5 rounded-full border border-white/5">
+                   <div className="flex items-center gap-2 text-[9px] font-black text-zinc-600 dark:text-zinc-500 italic bg-zinc-200/70 dark:bg-white/[0.03] px-3 py-1.5 rounded-full border border-zinc-300 dark:border-white/5">
                       <Activity className="w-3 h-3 text-zinc-500" /> Active
                    </div>
                 </div>

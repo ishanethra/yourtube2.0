@@ -291,7 +291,7 @@ const VideoInfo = ({ video }: any) => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-14 px-8 rounded-3xl bg-white/[0.03] backdrop-blur-3xl border border-white/5 hover:bg-white/[0.08] font-black text-[10px] tracking-widest gap-4 transition-all duration-500 uppercase italic whitespace-nowrap ${item.loading ? "animate-pulse" : ""} ${item.active ? "text-zinc-200 border-white/20 bg-white/5 shadow-2xl" : "text-zinc-500 hover:text-white"}`}
+                    className={`h-14 px-8 rounded-3xl bg-zinc-100 dark:bg-white/[0.03] backdrop-blur-3xl border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/[0.08] font-black text-[10px] tracking-widest gap-4 transition-all duration-500 uppercase italic whitespace-nowrap ${item.loading ? "animate-pulse" : ""} ${item.active ? "text-zinc-800 dark:text-zinc-200 border-zinc-300 dark:border-white/20 bg-zinc-200 dark:bg-white/5 shadow-2xl" : "text-zinc-600 dark:text-zinc-500 hover:text-black dark:hover:text-white"}`}
                     onClick={item.action}
                   >
                     {item.icon}
@@ -310,7 +310,7 @@ const VideoInfo = ({ video }: any) => {
           <Button
             variant="ghost"
             size="icon"
-            className="h-14 w-14 rounded-3xl bg-white/[0.03] backdrop-blur-3xl border border-white/5 hover:bg-white/[0.08] text-zinc-500 flex-shrink-0 transition-all duration-500 hover:rotate-90"
+            className="h-14 w-14 rounded-3xl bg-zinc-100 dark:bg-white/[0.03] backdrop-blur-3xl border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-white/[0.08] text-zinc-600 dark:text-zinc-500 flex-shrink-0 transition-all duration-500 hover:rotate-90"
             onClick={() => toast("Statistics", {
               description: "Detailed video statistics.",
               action: {
@@ -329,7 +329,7 @@ const VideoInfo = ({ video }: any) => {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-14 w-14 rounded-3xl bg-white/5 border border-white/10 hover:bg-white hover:text-black text-zinc-400 flex-shrink-0 transition-all duration-500"
+                    className="h-14 w-14 rounded-3xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 hover:bg-zinc-200 dark:hover:bg-white hover:text-black text-zinc-600 dark:text-zinc-400 flex-shrink-0 transition-all duration-500"
                     onClick={handleDelete}
                   >
                     <Trash2 className="w-5 h-5" />
@@ -344,18 +344,18 @@ const VideoInfo = ({ video }: any) => {
         </div>
       </div>
 
-      <div className="group relative bg-white/[0.02] dark:bg-zinc-950/40 backdrop-blur-3xl rounded-[2.5rem] p-8 mt-10 border border-white/5 transition-all duration-700 hover:bg-white/[0.04] hover:border-white/10 hover:shadow-[0_0_50px_-12px_rgba(255,255,255,0.05)] overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-white/[0.01] blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-white/[0.01] blur-[80px] rounded-full pointer-events-none" />
+      <div className="group relative bg-zinc-100 dark:bg-zinc-950/40 backdrop-blur-3xl rounded-[2.5rem] p-8 mt-10 border border-zinc-200 dark:border-white/5 transition-all duration-700 hover:bg-zinc-200/70 dark:hover:bg-white/[0.04] hover:border-zinc-300 dark:hover:border-white/10 hover:shadow-[0_0_50px_-12px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_0_50px_-12px_rgba(255,255,255,0.05)] overflow-hidden">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-zinc-200/50 dark:bg-white/[0.01] blur-[120px] rounded-full pointer-events-none" />
+        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-zinc-200/40 dark:bg-white/[0.01] blur-[80px] rounded-full pointer-events-none" />
         
-        <div className="flex flex-wrap gap-6 font-black text-[9px] uppercase tracking-[0.4em] text-zinc-500 mb-6 relative z-10 italic">
-          <div className="flex items-center gap-2.5 bg-white/[0.03] px-4 py-2 rounded-xl border border-white/5">
+        <div className="flex flex-wrap gap-6 font-black text-[9px] uppercase tracking-[0.4em] text-zinc-600 dark:text-zinc-500 mb-6 relative z-10 italic">
+          <div className="flex items-center gap-2.5 bg-zinc-200/70 dark:bg-white/[0.03] px-4 py-2 rounded-xl border border-zinc-300 dark:border-white/5">
              <Globe className="w-3.5 h-3.5 text-zinc-600" />
-             <span className="text-zinc-300">{(video.views || 0).toLocaleString()} <span className="text-zinc-600">views</span></span>
+             <span className="text-zinc-700 dark:text-zinc-300">{(video.views || 0).toLocaleString()} <span className="text-zinc-500 dark:text-zinc-600">views</span></span>
           </div>
-          <div className="flex items-center gap-2.5 bg-white/[0.03] px-4 py-2 rounded-xl border border-white/5">
+          <div className="flex items-center gap-2.5 bg-zinc-200/70 dark:bg-white/[0.03] px-4 py-2 rounded-xl border border-zinc-300 dark:border-white/5">
              <Activity className="w-3.5 h-3.5 text-zinc-600" />
-             <span className="text-zinc-300">{safeTimeAgo(video.createdAt)}</span>
+             <span className="text-zinc-700 dark:text-zinc-300">{safeTimeAgo(video.createdAt)}</span>
           </div>
           {user?.plan && user.plan !== "FREE" && (
             <div className="flex items-center gap-2.5 bg-yellow-500/10 px-4 py-2 rounded-xl border border-yellow-500/20 animate-pulse">
@@ -367,14 +367,14 @@ const VideoInfo = ({ video }: any) => {
         
         <div className={`relative z-10 transition-all duration-1000 ease-in-out overflow-hidden ${showFullDescription ? "max-h-[5000px]" : "max-h-[100px]"}`}>
            <div className="space-y-4">
-             <p className="text-[15px] font-bold leading-relaxed text-zinc-400 group-hover:text-zinc-300 transition-colors whitespace-pre-wrap italic tracking-tight">
+             <p className="text-[15px] font-bold leading-relaxed text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-800 dark:group-hover:text-zinc-200 transition-colors whitespace-pre-wrap italic tracking-tight">
                {video.videodescription || "No description provided for this broadcast."}
              </p>
            </div>
         </div>
         
         <button
-          className="relative z-10 mt-6 flex items-center gap-4 font-black text-[9px] uppercase tracking-[0.4em] text-zinc-500 hover:text-white transition-all group/btn italic"
+          className="relative z-10 mt-6 flex items-center gap-4 font-black text-[9px] uppercase tracking-[0.4em] text-zinc-600 dark:text-zinc-500 hover:text-black dark:hover:text-white transition-all group/btn italic"
           onClick={() => setShowFullDescription(!showFullDescription)}
         >
           <div className="w-6 h-[2px] bg-zinc-700/50 group-hover/btn:w-12 transition-all duration-500" />
