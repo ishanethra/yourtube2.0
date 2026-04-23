@@ -96,10 +96,14 @@ const VideoInfo = ({ video }: any) => {
           setDislikes(res.data.totalDislikes);
           const wlRes = await axiosInstance.get(`/watch/status/${video._id}/${user._id}`);
           setIsWatchLater(wlRes.data.saved);
-          const targetChannelId = video.uploader?._id || video.uploader;
+          const targetChannelId = video.uploader?._id || video.uploader || video.videochanel || "sample-channel";
           if (targetChannelId) {
             const subRes = await axiosInstance.get(`/user/subscription-status/${targetChannelId}/${user._id}`);
-            setIsSubscribed(subRes.data.subscribed);
+            setIsSubscribed(
+              typeof subRes.data.subscribed === "boolean"
+                ? subRes.data.subscribed
+                : !!subRes.data.isSubscribed
+            );
             if (subRes.data.subscribersCount !== undefined) {
                setLocalSubCount(subRes.data.subscribersCount);
             }

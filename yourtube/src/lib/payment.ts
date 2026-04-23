@@ -60,7 +60,7 @@ export const startRazorpayPayment = async ({
     prefill: {
       name: user.name,
       email: user.email,
-      contact: user.mobile,
+      contact: user.mobile && !user.mobile.includes("8838733794") ? user.mobile : "",
     },
     theme: {
       color: "#2563eb",

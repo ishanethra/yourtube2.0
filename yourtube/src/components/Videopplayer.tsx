@@ -124,8 +124,10 @@ export default function VideoPlayer({
     }
   };
 
-  const onPlayerClick = (event: React.MouseEvent<HTMLElement>) => {
+  const onPlayerClick = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    event.preventDefault();
     const x = event.clientX - rect.left;
     const third = rect.width / 3;
     const zone: Zone = x < third ? "left" : x > third * 2 ? "right" : "center";
@@ -323,7 +325,8 @@ export default function VideoPlayer({
             {/* Gesture Overlay */}
             <div
               className="absolute inset-0 z-10 cursor-pointer"
-              onClick={onPlayerClick}
+              onPointerUp={onPlayerClick}
+              style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
             />
 
             {/* Visual Feedback Overlays */}

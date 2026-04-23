@@ -298,7 +298,10 @@ export const subscribeChannel = async (req, res) => {
     if (isSampleChannel) {
       // Handle Sample Channel Subscription
       await users.findByIdAndUpdate(userId, { $addToSet: { subscribedChannels: channelId } });
-      return res.status(200).json({ message: "Subscribed to sample channel successfully" });
+      return res.status(200).json({
+        message: "Subscribed to sample channel successfully",
+        subscribed: true,
+      });
     }
 
     const channel = await users.findById(channelId);
@@ -310,10 +313,18 @@ export const subscribeChannel = async (req, res) => {
       return res.status(200).json({ message: "Already subscribed", subscribed: true });
     }
 
-    await users.findByIdAndUpdate(channelId, { $addToSet: { subscribers: userId } });
+    const updatedChannel = await users.findByIdAndUpdate(
+      channelId,
+      { $addToSet: { subscribers: userId } },
+      { new: true }
+    );
     await users.findByIdAndUpdate(userId, { $addToSet: { subscribedChannels: channelId } });
 
-    return res.status(200).json({ message: "Subscribed successfully", subscribed: true });
+    return res.status(200).json({
+      message: "Subscribed successfully",
+      subscribed: true,
+      subscribersCount: updatedChannel?.subscribers?.length || 0,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Something went wrong" });
@@ -332,13 +343,24 @@ export const unsubscribeChannel = async (req, res) => {
   try {
     if (isSampleChannel) {
       await users.findByIdAndUpdate(userId, { $pull: { subscribedChannels: channelId } });
-      return res.status(200).json({ message: "Unsubscribed from sample channel successfully", subscribed: false });
+      return res.status(200).json({
+        message: "Unsubscribed from sample channel successfully",
+        subscribed: false,
+      });
     }
 
-    await users.findByIdAndUpdate(channelId, { $pull: { subscribers: userId } });
+    const updatedChannel = await users.findByIdAndUpdate(
+      channelId,
+      { $pull: { subscribers: userId } },
+      { new: true }
+    );
     await users.findByIdAndUpdate(userId, { $pull: { subscribedChannels: channelId } });
 
-    return res.status(200).json({ message: "Unsubscribed successfully", subscribed: false });
+    return res.status(200).json({
+      message: "Unsubscribed successfully",
+      subscribed: false,
+      subscribersCount: updatedChannel?.subscribers?.length || 0,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Something went wrong" });
@@ -398,15 +420,24 @@ export const getSubscriptionStatus = async (req, res) => {
   const { channelId, userId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
-    return res.status(200).json({ isSubscribed: false });
+    return res.status(200).json({ subscribed: false, isSubscribed: false, subscribersCount: 0 });
   }
 
   try {
     const user = await users.findById(userId);
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const isSubscribed = user.subscribedChannels.includes(channelId);
-    return res.status(200).json({ isSubscribed });
+    const isSubscribed = user.subscribedChannels.some(id => id.toString() === channelId.toString());
+    let subscribersCount = 0;
+    if (mongoose.Types.ObjectId.isValid(channelId)) {
+      const channel = await users.findById(channelId).select("subscribers");
+      subscribersCount = channel?.subscribers?.length || 0;
+    }
+    return res.status(200).json({
+      subscribed: isSubscribed,
+      isSubscribed,
+      subscribersCount,
+    });
   } catch (error) {
     console.error("Get Subscription Status error:", error);
     return res.status(500).json({ message: "Something went wrong" });

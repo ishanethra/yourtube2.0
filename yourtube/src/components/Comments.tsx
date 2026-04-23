@@ -432,11 +432,11 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 bg-white/95 dark:bg-black/90 backdrop-blur-3xl border border-black/10 dark:border-white/10 rounded-3xl shadow-3xl animate-in fade-in zoom-in-95 duration-300 overflow-hidden p-2">
-                <DropdownMenuItem onClick={() => setIsEditing(true)} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 cursor-pointer focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all mb-1 uppercase tracking-widest italic">
-                  <Edit2 className="w-4 h-4 text-zinc-500 group-hover:text-black" /> Edit
+                <DropdownMenuItem onClick={() => setIsEditing(true)} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 text-black dark:text-zinc-300 cursor-pointer focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all mb-1 uppercase tracking-widest italic">
+                  <Edit2 className="w-4 h-4" /> Edit
                 </DropdownMenuItem>
                 <div className="h-px bg-black/10 dark:bg-white/5 my-1" />
-                <DropdownMenuItem onClick={handleDelete} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 text-zinc-500 cursor-pointer focus:bg-black dark:focus:bg-white focus:text-white dark:focus:text-black transition-all uppercase tracking-widest italic">
+                <DropdownMenuItem onClick={handleDelete} className="text-[10px] font-black py-5 px-6 rounded-2xl flex items-center gap-4 text-black dark:text-zinc-300 cursor-pointer focus:bg-red-500 focus:text-white transition-all uppercase tracking-widest italic">
                   <Trash2 className="w-4 h-4" /> Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
