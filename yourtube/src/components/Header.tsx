@@ -88,13 +88,13 @@ const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
 
       <div className="flex items-center gap-1 sm:gap-2">
         {/* Mobile Search Trigger */}
-        <Button variant="ghost" size="icon" className="sm:hidden">
+        <Button variant="ghost" size="icon" className="sm:hidden" onClick={() => router.push("/search")}>
           <Search className="w-5 h-5" />
         </Button>
         
         {user ? (
           <>
-            <Button variant="ghost" size="icon" className="hidden xs:flex" onClick={() => setIsVoipOpen(true)}>
+            <Button variant="ghost" size="icon" className="flex" onClick={() => setIsVoipOpen(true)}>
               <VideoIcon className="w-5 h-5 sm:w-6 h-6" />
             </Button>
             <Button variant="ghost" size="icon">

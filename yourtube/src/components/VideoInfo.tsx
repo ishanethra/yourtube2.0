@@ -250,7 +250,7 @@ const VideoInfo = ({ video }: any) => {
           </div>
 
           <Button
-            className={`rounded-2xl font-black px-10 h-14 text-[10px] uppercase tracking-[0.3em] transition-all duration-700 shadow-3xl italic hidden sm:flex ${
+            className={`rounded-2xl font-black px-6 sm:px-10 h-11 sm:h-14 text-[9px] sm:text-[10px] uppercase tracking-[0.2em] sm:tracking-[0.3em] transition-all duration-700 shadow-3xl italic flex ${
               isSubscribed 
                 ? "bg-zinc-100 dark:bg-zinc-900 text-zinc-400 dark:text-zinc-500 border border-zinc-200 dark:border-white/5 hover:bg-zinc-200 dark:hover:bg-zinc-800 hover:text-black dark:hover:text-white" 
                 : "bg-black dark:bg-white text-white dark:text-black hover:bg-zinc-800 dark:hover:bg-zinc-200 scale-100 hover:scale-105 active:scale-95"

@@ -427,7 +427,7 @@ const CommentItem = ({ comment, onRefresh, userCity, isReply = false, setShowErr
           {isOwner && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-10 w-10 rounded-2xl p-0 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all hover:bg-zinc-200 dark:hover:bg-white/[0.08] bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5">
+                <Button variant="ghost" size="sm" className="h-10 w-10 rounded-2xl p-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 transition-all hover:bg-zinc-200 dark:hover:bg-white/[0.08] bg-zinc-100 dark:bg-white/[0.02] border border-zinc-200 dark:border-white/5">
                   <MoreVertical className="w-3.5 h-3.5 text-zinc-500" />
                 </Button>
               </DropdownMenuTrigger>

@@ -543,7 +543,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
               <button 
                 onClick={toggleRecording} 
-                className={`group relative w-10 h-10 md:w-12 md:h-12 rounded-full hidden sm:flex items-center justify-center transition-all ${isRecording ? "bg-[#ea4335] animate-pulse" : "bg-[#3c4043] hover:bg-[#4a4e51] text-white"}`}
+                className={`group relative w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center transition-all ${isRecording ? "bg-[#ea4335] animate-pulse" : "bg-[#3c4043] hover:bg-[#4a4e51] text-white"}`}
               >
                 {isRecording ? <Square className="w-5 h-5 fill-current" /> : <Circle className="w-5 h-5" />}
                 <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#3c4043] text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
@@ -589,6 +589,23 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                 <X className="w-5 h-5" />
               </button>
             </div>
+          </div>
+        )}
+
+        {callState === "connected" && (
+          <div className="absolute bottom-24 right-4 flex lg:hidden items-center gap-2 z-30">
+            <button
+              onClick={copyMeetingLink}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-[#3c4043] hover:bg-[#4a4e51] text-white transition-all"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={onClose}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-[#3c4043] hover:bg-[#4a4e51] text-white transition-all"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         )}
 

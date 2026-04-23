@@ -11,7 +11,7 @@ const AppContent = ({ Component, pageProps }: { Component: any, pageProps: any }
   const { sidebarCollapsed, toggleSidebar, closeSidebar } = useAppStatus() as any;
   
   return (
-    <div className="h-screen w-full flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-500 overflow-hidden">
+    <div className="h-dvh min-h-dvh w-screen max-w-screen flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-500 overflow-hidden">
       <title>YourTube 2.0</title>
       <Header onToggleSidebar={toggleSidebar} />
       <div className="flex flex-1 min-h-0 relative">
