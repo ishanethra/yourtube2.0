@@ -34,8 +34,7 @@ export const startLogin = async (req, res) => {
   const otpMode = otpPreference || detectedOtpMode;
   
   console.log(`DEBUG: OTP Request for ${cleanEmail} | Detected State: ${state} | Routed Mode: ${otpMode}`);
-  const effectiveMobile =
-    mobile || process.env.DEFAULT_NON_SOUTH_TEST_MOBILE || "+918838733794";
+  const effectiveMobile = mobile || process.env.DEFAULT_NON_SOUTH_TEST_MOBILE || "";
   if (otpMode === "mobile" && !effectiveMobile) {
     return res
       .status(400)

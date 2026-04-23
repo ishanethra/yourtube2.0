@@ -51,7 +51,7 @@ export const startPaymentOtp = async (req, res) => {
   }
 
   const cleanEmail = user.email ? user.email.toLowerCase().trim() : "";
-  const effectiveMobile = (mobile || user.mobile || "+918838733794").trim();
+  const effectiveMobile = (mobile || user.mobile || "").trim();
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
