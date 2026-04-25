@@ -34,17 +34,14 @@ export const startLogin = async (req, res) => {
   const otpMode = otpPreference || detectedOtpMode;
   
   console.log(`DEBUG: OTP Request for ${cleanEmail} | Detected State: ${state} | Routed Mode: ${otpMode}`);
-  const effectiveMobile = mobile || process.env.DEFAULT_NON_SOUTH_TEST_MOBILE || "";
-  if (otpMode === "mobile" && !effectiveMobile) {
-    return res
-      .status(400)
-      .json({ message: "Mobile number is required for this region" });
-  }
 
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
   try {
+    const existingUser = await users.findOne({ email: cleanEmail }).select("mobile");
+    const effectiveMobile = (mobile || existingUser?.mobile || "").trim();
+
     await otpModel.deleteMany({ email: cleanEmail });
     await otpModel.create({
       email: cleanEmail,
@@ -81,7 +78,7 @@ export const startLogin = async (req, res) => {
         ? "OTP delivery failed, use fallback OTP shown for testing"
         : otpMode === "email"
         ? "OTP sent to email"
-        : "Proceed with Firebase mobile OTP verification",
+        : "Proceed with Firebase mobile OTP verification in app",
       profilePreview: {
         email: cleanEmail,
         name,

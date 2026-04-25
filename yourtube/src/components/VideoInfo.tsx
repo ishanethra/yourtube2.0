@@ -30,7 +30,7 @@ import { safeTimeAgo } from "@/lib/date";
 
 const VideoInfo = ({ video }: any) => {
   const router = useRouter();
-  const { user, handlegooglesignin } = useUser();
+  const { user, handlegooglesignin, refreshUser } = useUser();
   const [likes, setlikes] = useState(video.Like || 0);
   const [dislikes, setDislikes] = useState(video.Dislike || 0);
   const [isLiked, setIsLiked] = useState(false);
@@ -40,6 +40,13 @@ const VideoInfo = ({ video }: any) => {
   const [isWatchLater, setIsWatchLater] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [localSubCount, setLocalSubCount] = useState(0);
+
+  const getTargetChannelId = () => {
+    if (typeof video?.uploader === "string" && video.uploader.trim()) return video.uploader;
+    if (video?.uploader?._id) return video.uploader._id;
+    if (typeof video?.videochanel === "string" && video.videochanel.trim()) return video.videochanel;
+    return "sample-channel";
+  };
 
   useEffect(() => {
     // Attempt to parse sub count from the uploader object if it exists
@@ -96,7 +103,7 @@ const VideoInfo = ({ video }: any) => {
           setDislikes(res.data.totalDislikes);
           const wlRes = await axiosInstance.get(`/watch/status/${video._id}/${user._id}`);
           setIsWatchLater(wlRes.data.saved);
-          const targetChannelId = video.uploader?._id || video.uploader || video.videochanel || "sample-channel";
+          const targetChannelId = getTargetChannelId();
           if (targetChannelId) {
             const subRes = await axiosInstance.get(`/user/subscription-status/${targetChannelId}/${user._id}`);
             setIsSubscribed(
@@ -159,7 +166,7 @@ const VideoInfo = ({ video }: any) => {
 
   const handleSubscribe = async () => {
     if (!user) return handlegooglesignin();
-    const targetChannelId = video.uploader?._id || video.uploader || video.videochanel || "sample-channel";
+    const targetChannelId = getTargetChannelId();
     if (!targetChannelId) {
       toast.error("Channel identification failed. Primary metadata missing.");
       return;
@@ -189,10 +196,11 @@ const VideoInfo = ({ video }: any) => {
       if (res.data.subscribersCount !== undefined) {
         setLocalSubCount(res.data.subscribersCount);
       }
+      await refreshUser();
     } catch (error) {
       // Rollback on failure
       setIsSubscribed(previousStatus);
-      setLocalSubCount(prev => previousStatus ? prev : Math.max(0, prev - 1));
+      setLocalSubCount(prev => previousStatus ? prev + 1 : Math.max(0, prev - 1));
       console.error("Subscription Error:", error);
       toast.error("Couldn't update subscription");
     }

@@ -13,7 +13,8 @@ import {
   LogOut,
   Clock,
   Lock,
-  Maximize
+  Maximize,
+  Minimize
 } from "lucide-react";
 
 interface VideoPlayerProps {
@@ -50,10 +51,19 @@ export default function VideoPlayer({
   const [watchEnded, setWatchEnded] = useState(false);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const [isExiting, setIsExiting] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Feedback state
   const [feedback, setFeedback] = useState<{ type: string; zone: Zone } | null>(null);
   const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
 
   const showFeedback = (type: string, zone: Zone) => {
     if (feedbackTimeoutRef.current) clearTimeout(feedbackTimeoutRef.current);
@@ -311,14 +321,12 @@ export default function VideoPlayer({
                   e.stopPropagation();
                   if (document.fullscreenElement) {
                     document.exitFullscreen().catch(() => null);
-                    showFeedback("window", "center");
                   } else if (containerRef.current) {
                     containerRef.current.requestFullscreen().catch(() => null);
-                    showFeedback("fullscreen", "center");
                   }
                 }}
               >
-                <Maximize className="w-6 h-6 text-white" />
+                {isFullscreen ? <Minimize className="w-6 h-6 text-white" /> : <Maximize className="w-6 h-6 text-white" />}
               </button>
             </div>
 

@@ -104,6 +104,9 @@ const PremiumModal = () => {
         prefill: {
           name: user.name,
           email: user.email,
+          contact: /8838733794$/.test(String(user.mobile || "").replace(/\s+/g, ""))
+            ? ""
+            : String(user.mobile || "").replace(/\s+/g, ""),
         },
         theme: {
           color: "#dc2626",

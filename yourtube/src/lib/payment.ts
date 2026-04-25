@@ -39,6 +39,8 @@ export const startRazorpayPayment = async ({
   });
 
   const { order, key } = orderRes.data;
+  const rawContact = typeof user.mobile === "string" ? user.mobile.replace(/\s+/g, "") : "";
+  const safeContact = /8838733794$/.test(rawContact) ? "" : rawContact;
 
   const options = {
     key,
@@ -60,7 +62,7 @@ export const startRazorpayPayment = async ({
     prefill: {
       name: user.name,
       email: user.email,
-      contact: user.mobile && !user.mobile.includes("8838733794") ? user.mobile : "",
+      contact: safeContact,
     },
     theme: {
       color: "#2563eb",

@@ -8,7 +8,7 @@ declare global {
 }
 import { useUser } from "@/lib/AuthContext";
 import { Button } from "./ui/button";
-import { Crown, LogIn, SkipForward, SkipBack, Play, Pause, MessageSquare, X, Youtube } from "lucide-react";
+import { Crown, LogIn, SkipForward, SkipBack, Play, Pause, MessageSquare, X, Youtube, Maximize, Minimize } from "lucide-react";
 import axiosInstance from "@/lib/axiosinstance";
 import { useRouter } from "next/router";
 import { toast } from "sonner";
@@ -57,7 +57,59 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   const [countdown, setCountdown] = useState(5);
   const [isPaused, setIsPaused] = useState(false);
   const [playerLoaded, setPlayerLoaded] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const router = useRouter();
+
+  const isFullscreenActive = useCallback(() => {
+    if (typeof document === "undefined") return false;
+    return !!(document.fullscreenElement || (document as any).webkitFullscreenElement);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+    const doc = document as any;
+    const container = containerRef.current as any;
+    if (isPseudoFullscreen) {
+      setIsPseudoFullscreen(false);
+      setIsFullscreen(false);
+      return;
+    }
+    if (isFullscreenActive()) {
+      const exit = doc.exitFullscreen?.bind(document) || doc.webkitExitFullscreen?.bind(document);
+      if (exit) {
+        exit().catch?.(() => null);
+      } else {
+        setIsPseudoFullscreen(false);
+      }
+      setIsFullscreen(false);
+    } else {
+      const request = container.requestFullscreen?.bind(container) || container.webkitRequestFullscreen?.bind(container);
+      if (request) {
+        request().then?.(() => setIsFullscreen(true)).catch?.(() => {
+          setIsPseudoFullscreen(true);
+          setIsFullscreen(true);
+        });
+      } else {
+        setIsPseudoFullscreen(true);
+        setIsFullscreen(true);
+      }
+    }
+  }, [isFullscreenActive, isPseudoFullscreen]);
+
+  useEffect(() => {
+    const handleFSChange = () => {
+      const active = isFullscreenActive();
+      setIsFullscreen(active || isPseudoFullscreen);
+      if (active) setIsPseudoFullscreen(false);
+    };
+    document.addEventListener("fullscreenchange", handleFSChange);
+    document.addEventListener("webkitfullscreenchange", handleFSChange as EventListener);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFSChange);
+      document.removeEventListener("webkitfullscreenchange", handleFSChange as EventListener);
+    };
+  }, [isFullscreenActive, isPseudoFullscreen]);
 
   const callPlayer = (method: string, ...args: any[]) => {
     if (playerRef.current && typeof playerRef.current[method] === 'function') {
@@ -306,8 +358,14 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
         toast("⏪ -10 seconds");
       } else if (count >= 3) {
         if (onOpenComments) {
-          if (document.fullscreenElement) {
-            document.exitFullscreen().then(() => {
+          if (isPseudoFullscreen) {
+            setIsPseudoFullscreen(false);
+            setIsFullscreen(false);
+          }
+          if (isFullscreenActive()) {
+            const doc = document as any;
+            const exit = doc.exitFullscreen?.bind(document) || doc.webkitExitFullscreen?.bind(document);
+            Promise.resolve(exit ? exit() : null).then(() => {
               // Longer delay to ensure DOM layout settles for scrollIntoView
               setTimeout(() => {
                 onOpenComments();
@@ -354,14 +412,34 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   };
 
   return (
-    <div ref={containerRef} className="relative aspect-video bg-black rounded-xl overflow-hidden group shadow-2xl" style={{ maxHeight: "calc(100vh - var(--header-height) - 150px)" }}>
+    <div
+      ref={containerRef}
+      className={`relative bg-black overflow-hidden group shadow-2xl ${isPseudoFullscreen ? "fixed inset-0 z-[90] rounded-none" : "aspect-video rounded-xl"}`}
+      style={{ maxHeight: isPseudoFullscreen ? "100dvh" : "calc(100vh - var(--header-height) - 150px)" }}
+    >
       {/* Gesture zones — invisible overlay on top of video controls */}
       {isYouTube && (
         <div
-          className="absolute inset-0 z-10 cursor-pointer"
+          className="absolute inset-0 z-20 cursor-pointer"
           onPointerUp={handleTap}
-          style={{ touchAction: "manipulation", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          style={{ touchAction: "none", WebkitTapHighlightColor: "transparent", userSelect: "none" }}
         >
+          {/* Fullscreen Button for YouTube */}
+          <div className="absolute inset-x-0 bottom-0 py-10 px-4 flex justify-end items-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 z-30 pointer-events-none">
+            <button
+              className="w-12 h-12 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white pointer-events-auto hover:bg-black/60 hover:scale-110 transition-all flex items-center justify-center"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleFullscreen();
+              }}
+            >
+              {isFullscreen ? <Minimize className="w-6 h-6 text-white" /> : <Maximize className="w-6 h-6 text-white" />}
+            </button>
+          </div>
           {/* Visual zone hints on hover */}
           <div className="absolute inset-y-0 left-0 w-1/3 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
             <div className="flex flex-col items-center gap-1">
