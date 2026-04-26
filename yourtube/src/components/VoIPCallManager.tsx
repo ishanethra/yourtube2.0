@@ -62,6 +62,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const micAnimRef = useRef<number | null>(null);
   const durationTimer  = useRef<NodeJS.Timeout | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
+  const roomIdRef = useRef(""); // stable ref so callbacks don't capture stale roomId
   const localAvatar = String(user?.image || "").trim();
 
   // Sync streams to video elements whenever they unmount/remount
@@ -85,9 +86,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   }, [callState, isOpen, remoteVideoOff, remotePresent, remoteIsSharing, isSharing]);
 
   const endCall = useCallback((silent = false) => {
-    stopDurationTimer();
-    if (socketRef.current?.connected && roomId) {
-      socketRef.current.emit("screen-share-state", { roomId, isSharing: false });
+    if (durationTimer.current) clearInterval(durationTimer.current);
+    if (socketRef.current?.connected && roomIdRef.current) {
+      socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: false });
     }
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -101,6 +102,11 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     remoteStreamRef.current = null;
     pcRef.current = null;
     socketRef.current = null;
+
+    // Release camera/mic hardware — clears the browser's camera indicator
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (localScreenVideoRef.current) localScreenVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
     setCallState("idle");
     setCallDuration(0);
     setIsSharing(false);
@@ -113,7 +119,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       toast.info("Call ended");
       onClose();
     }
-  }, [roomId, onClose]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose]);
 
   useEffect(() => {
     if (isOpen && router.query.room && callState === "idle") {
@@ -121,6 +128,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       setJoinRoomId(rid);
       handleJoinRoom(rid);
     }
+  // handleJoinRoom is stable enough — including it would cause infinite re-runs
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, router.query.room, callState]);
 
   const connectWS = (room: string) => {
@@ -307,6 +316,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const id = Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + 
                  Math.random().toString(36).slice(2, 6).toUpperCase();
       setRoomId(id);
+      roomIdRef.current = id; // keep ref in sync
       
       // Sync room ID to URL so reloading or sharing works out-of-the-box
       router.replace({ pathname: router.pathname, query: { ...router.query, room: id } }, undefined, { shallow: true });
@@ -339,6 +349,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         await startLocalMedia();
       }
       setRoomId(idToJoin);
+      roomIdRef.current = idToJoin; // keep ref in sync
       
       // Sync room ID to URL so reloading or sharing works out-of-the-box
       if (router.query.room !== idToJoin) {
@@ -363,14 +374,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     }
     if (localStreamRef.current) {
       const camTrack = localStreamRef.current.getVideoTracks()[0];
-      pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(camTrack);
+      pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(camTrack ?? null);
     }
     setIsSharing(false);
-    if (socketRef.current?.connected && roomId) {
-      socketRef.current.emit("screen-share-state", { roomId, isSharing: false });
+    // Use roomIdRef so this callback is never stale even when roomId state lags
+    if (socketRef.current?.connected && roomIdRef.current) {
+      socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: false });
     }
     toast.info("Screen sharing stopped");
-  }, [roomId]);
+  }, []);
 
   const stopComposedRecorderResources = useCallback(() => {
     if (recordingFrameRef.current) {
@@ -642,10 +654,16 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   };
 
   const startDurationTimer = () => {
-    if (durationTimer.current) clearInterval(durationTimer.current);
+    // Guard: never stack up multiple timers
+    if (durationTimer.current) return;
     durationTimer.current = setInterval(() => setCallDuration(d => d + 1), 1000);
   };
-  const stopDurationTimer = () => { if (durationTimer.current) clearInterval(durationTimer.current); };
+  const stopDurationTimer = () => {
+    if (durationTimer.current) {
+      clearInterval(durationTimer.current);
+      durationTimer.current = null;
+    }
+  };
   const formatDuration = (s: number) => `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
 
   // Cleanup everything on unmount
@@ -1077,7 +1095,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
               <button className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5 text-white/60 hover:text-white transition-all">
                 <MessageSquare className="w-4 h-4" />
               </button>
-              <button onClick={onClose} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5 text-white/60 hover:text-white transition-all ml-2">
+              <button onClick={() => endCall()} className="w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5 text-white/60 hover:text-white transition-all ml-2" title="End call and close">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -1100,8 +1118,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
               <Copy className="w-4 h-4" />
             </button>
             <button
-              onClick={onClose}
+              onClick={() => endCall()}
               className="w-10 h-10 rounded-full flex items-center justify-center bg-[#3c4043] hover:bg-[#4a4e51] text-white transition-all"
+              title="End call and close"
             >
               <X className="w-4 h-4" />
             </button>

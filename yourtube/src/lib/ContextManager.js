@@ -22,7 +22,10 @@ export const ContextProvider = ({ children }) => {
   const [isCallMinimized, setIsCallMinimized] = useState(false);
 
   const openCallManager = () => setIsCallOpen(true);
-  const closeCallManager = () => setIsCallOpen(false);
+  const closeCallManager = () => {
+    setIsCallOpen(false);
+    setIsCallMinimized(false); // reset minimized state so next call opens fully
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.localStorage) {
