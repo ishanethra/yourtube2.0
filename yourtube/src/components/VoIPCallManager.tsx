@@ -42,6 +42,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [showSharePicker, setShowSharePicker] = useState(false);
   const [syncUrl, setSyncUrl] = useState("");
   const [callDuration, setCallDuration] = useState(0);
+  const [micLevel, setMicLevel] = useState(0);
 
   const localVideoRef  = useRef<HTMLVideoElement>(null);
   const localScreenVideoRef = useRef<HTMLVideoElement>(null);
@@ -55,6 +56,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const recordingFrameRef = useRef<number | null>(null);
   const composedStreamRef = useRef<MediaStream | null>(null);
   const composedAudioCtxRef = useRef<AudioContext | null>(null);
+  const micAudioCtxRef = useRef<AudioContext | null>(null);
+  const micAnimRef = useRef<number | null>(null);
   const durationTimer  = useRef<NodeJS.Timeout | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const localAvatar = String(user?.image || "").trim();
@@ -100,6 +103,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     setRemoteVideoOff(false);
     setRemotePresent(false);
     setIsMinimized(false);
+    setMicLevel(0);
     if (!silent) toast.info("Call ended");
   }, [roomId]);
 
@@ -234,11 +238,52 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStreamRef.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      if (localVideoRef.current) {
+        localVideoRef.current.play().catch(() => null);
+      }
     } catch (err) {
       console.error("Local media error:", err);
       toast.error("Could not access camera/mic");
     }
   };
+
+  const stopMicMeter = useCallback(() => {
+    if (micAnimRef.current) {
+      cancelAnimationFrame(micAnimRef.current);
+      micAnimRef.current = null;
+    }
+    if (micAudioCtxRef.current && micAudioCtxRef.current.state !== "closed") {
+      micAudioCtxRef.current.close().catch(() => null);
+    }
+    micAudioCtxRef.current = null;
+    setMicLevel(0);
+  }, []);
+
+  const startMicMeter = useCallback((stream: MediaStream | null) => {
+    stopMicMeter();
+    if (!stream) return;
+    const audioTracks = stream.getAudioTracks();
+    if (!audioTracks.length) return;
+
+    const audioContext = new AudioContext();
+    micAudioCtxRef.current = audioContext;
+    const analyser = audioContext.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.8;
+    const src = audioContext.createMediaStreamSource(new MediaStream([audioTracks[0]]));
+    src.connect(analyser);
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      let sum = 0;
+      for (let i = 0; i < data.length; i += 1) sum += data[i];
+      const avg = sum / data.length;
+      setMicLevel(Math.min(100, Math.round((avg / 255) * 100)));
+      micAnimRef.current = requestAnimationFrame(tick);
+    };
+    tick();
+  }, [stopMicMeter]);
 
   const handleCreateRoom = async () => {
     if (!user) return toast.error("Sign in to create a meeting");
@@ -539,10 +584,19 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
         mediaRecRef.current.stop();
       }
+      stopMicMeter();
       stopComposedRecorderResources();
       endCall(true);
     };
-  }, [endCall, stopComposedRecorderResources]);
+  }, [endCall, stopComposedRecorderResources, stopMicMeter]);
+
+  useEffect(() => {
+    if (!isOpen || !user) return;
+    if (callState !== "idle") return;
+    startLocalMedia().then(() => {
+      startMicMeter(localStreamRef.current);
+    });
+  }, [isOpen, user, callState, startMicMeter]);
 
   if (!isOpen) return null;
 
@@ -646,7 +700,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
               {/* Left Side: Video Preview */}
               <div className="w-full lg:w-[640px] flex flex-col gap-4">
                 <div className="relative aspect-video bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl group border border-white/5">
-                  {(isVideoOff || !user) ? (
+                  {(isVideoOff || !user || !localStreamRef.current?.getVideoTracks()?.length) ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#202124]">
                       {localAvatar ? (
                         <img
@@ -704,6 +758,23 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                         {callState === "idle" ? "Start a meeting" : "Connecting..."}
                       </h1>
                       <p className="text-zinc-400 text-lg">Share your room code and invite your friend.</p>
+                      {callState === "idle" && (
+                        <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                          <div className="flex items-center justify-between text-xs mb-2">
+                            <span className="text-zinc-300">Mic Test</span>
+                            <span className="text-zinc-400">{micLevel}%</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-white/10 overflow-hidden">
+                            <div
+                              className={`h-full transition-all ${
+                                micLevel > 70 ? "bg-emerald-400" : micLevel > 35 ? "bg-amber-400" : "bg-blue-400"
+                              }`}
+                              style={{ width: `${micLevel}%` }}
+                            />
+                          </div>
+                          <p className="text-[11px] text-zinc-400 mt-2">Speak to check if your microphone is working before joining.</p>
+                        </div>
+                      )}
                     </div>
 
                     <div className="space-y-4">
