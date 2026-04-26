@@ -5,7 +5,8 @@ import { Button } from "./ui/button";
 import { 
   PhoneOff, Video, VideoOff, Mic, MicOff, 
   Monitor, MonitorOff, Circle, Square, X, Copy, 
-  Users, Youtube, MessageSquare, Minimize2, Maximize2
+  Users, Youtube, MessageSquare, Minimize2, Maximize2,
+  AppWindow, MonitorUp
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/lib/AuthContext";
@@ -63,21 +64,24 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const localAvatar = String(user?.image || "").trim();
 
   // Sync streams to video elements whenever they unmount/remount
+  // By adding layout states to dependencies, this re-runs immediately after React mounts new <video> nodes
   useEffect(() => {
     let active = true;
     if (active && localVideoRef.current && localStreamRef.current) {
       localVideoRef.current.srcObject = localStreamRef.current;
+      localVideoRef.current.play().catch(() => null);
     }
     return () => { active = false; };
-  }, [callState, localStreamRef.current, isOpen]);
+  }, [callState, isOpen, isVideoOff, isSharing, remotePresent, remoteIsSharing]);
 
   useEffect(() => {
     let active = true;
     if (active && remoteVideoRef.current && remoteStreamRef.current) {
       remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      remoteVideoRef.current.play().catch(() => null);
     }
     return () => { active = false; };
-  }, [callState, remoteStreamRef.current, isOpen]);
+  }, [callState, isOpen, remoteVideoOff, remotePresent, remoteIsSharing, isSharing]);
 
   const endCall = useCallback((silent = false) => {
     stopDurationTimer();
@@ -479,14 +483,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     return composed;
   }, [isSharing, remoteIsSharing, user?.name]);
 
-  const startScreenShare = useCallback(async (preferCurrentTab: boolean) => {
+  const startScreenShare = useCallback(async (surfaceType: "browser" | "window" | "monitor" = "browser") => {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
+          displaySurface: surfaceType,
           frameRate: 30,
         } as MediaTrackConstraints,
         audio: true,
-        preferCurrentTab,
+        preferCurrentTab: surfaceType === "browser",
         selfBrowserSurface: "include",
       } as DisplayMediaStreamOptions);
       screenStreamRef.current = stream;
@@ -502,7 +507,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       if (socketRef.current?.connected && roomId) {
         socketRef.current.emit("screen-share-state", { roomId, isSharing: true });
       }
-      if (preferCurrentTab) {
+      if (surfaceType === "browser") {
         setIsMinimized(true);
         toast.success("Call minimized. You can navigate this website while sharing.");
       }
@@ -1129,25 +1134,35 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
         {/* Screen Share Picker Overlay */}
         {showSharePicker && (
-          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-lg bg-[#202124] border border-white/10 rounded-2xl p-6 shadow-2xl z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-            <h3 className="text-white text-base font-bold mb-4">Choose What To Share</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-sm bg-[#202124] border border-white/10 rounded-2xl p-4 shadow-2xl z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+            <h3 className="text-white text-base font-bold mb-3 pl-2">Share your screen</h3>
+            <div className="flex flex-col gap-2">
               <button
-                onClick={() => startScreenShare(true)}
-                className="rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-300 px-4 py-3 text-sm font-semibold hover:bg-blue-500/20 transition-all"
+                onClick={() => startScreenShare("browser")}
+                className="text-left rounded-xl px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/10 transition-all flex items-center gap-3"
               >
-                Share This Website Tab
+                <Monitor className="w-4 h-4 text-zinc-400" />
+                Chrome Tab
+                <span className="text-xs text-zinc-500 font-normal ml-auto">Best for video</span>
               </button>
               <button
-                onClick={() => startScreenShare(false)}
-                className="rounded-xl border border-white/20 bg-white/5 text-white px-4 py-3 text-sm font-semibold hover:bg-white/10 transition-all"
+                onClick={() => startScreenShare("window")}
+                className="text-left rounded-xl px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/10 transition-all flex items-center gap-3"
               >
-                Share Any Screen/Tab
+                <AppWindow className="w-4 h-4 text-zinc-400" />
+                Window
+              </button>
+              <button
+                onClick={() => startScreenShare("monitor")}
+                className="text-left rounded-xl px-4 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/10 transition-all flex items-center gap-3"
+              >
+                <MonitorUp className="w-4 h-4 text-zinc-400" />
+                Entire Screen
               </button>
             </div>
             <button
               onClick={() => setShowSharePicker(false)}
-              className="mt-4 text-xs text-zinc-400 hover:text-zinc-200"
+              className="mt-4 w-full bg-[#ea4335]/20 text-[#ea4335] border border-[#ea4335]/30 rounded-xl px-4 py-2 hover:bg-[#ea4335]/30 transition-all text-sm font-bold"
             >
               Cancel
             </button>
