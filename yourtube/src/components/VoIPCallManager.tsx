@@ -5,7 +5,7 @@ import { Button } from "./ui/button";
 import { 
   PhoneOff, Video, VideoOff, Mic, MicOff, 
   Monitor, MonitorOff, Circle, Square, X, Copy, 
-  Users, Youtube, MessageSquare
+  Users, Youtube, MessageSquare, Minimize2, Maximize2
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/lib/AuthContext";
@@ -33,6 +33,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [isMuted,      setIsMuted]      = useState(false);
   const [isVideoOff,   setIsVideoOff]   = useState(false);
   const [isSharing,    setIsSharing]    = useState(false);
+  const [remoteIsSharing, setRemoteIsSharing] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [isRecording,  setIsRecording]  = useState(false);
   const [showSyncInput, setShowSyncInput] = useState(false);
   const [showSharePicker, setShowSharePicker] = useState(false);
@@ -40,6 +42,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [callDuration, setCallDuration] = useState(0);
 
   const localVideoRef  = useRef<HTMLVideoElement>(null);
+  const localScreenVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef          = useRef<RTCPeerConnection | null>(null);
   const socketRef      = useRef<Socket | null>(null);
@@ -47,8 +50,12 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const screenStreamRef= useRef<MediaStream | null>(null);
   const mediaRecRef    = useRef<MediaRecorder | null>(null);
   const recordChunks   = useRef<Blob[]>([]);
+  const recordingFrameRef = useRef<number | null>(null);
+  const composedStreamRef = useRef<MediaStream | null>(null);
+  const composedAudioCtxRef = useRef<AudioContext | null>(null);
   const durationTimer  = useRef<NodeJS.Timeout | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
+  const localAvatar = String(user?.image || "").trim();
 
   // Sync streams to video elements whenever they unmount/remount
   useEffect(() => {
@@ -69,6 +76,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const endCall = useCallback((silent = false) => {
     stopDurationTimer();
+    if (socketRef.current?.connected && roomId) {
+      socketRef.current.emit("screen-share-state", { roomId, isSharing: false });
+    }
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     pcRef.current?.close();
@@ -84,8 +94,10 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     setCallState("idle");
     setCallDuration(0);
     setIsSharing(false);
+    setRemoteIsSharing(false);
+    setIsMinimized(false);
     if (!silent) toast.info("Call ended");
-  }, []);
+  }, [roomId]);
 
   useEffect(() => {
     if (isOpen && router.query.room && callState === "idle") {
@@ -133,6 +145,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("user-left", () => {
       toast.info("Participant disconnected");
+      setRemoteIsSharing(false);
       if (remoteStreamRef.current) {
         remoteStreamRef.current.getTracks().forEach((t) => t.stop());
         remoteStreamRef.current = new MediaStream();
@@ -143,6 +156,10 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     socket.on("video-sync", (data) => {
       // Broadcast to GestureVideoPlayer
       window.dispatchEvent(new CustomEvent("youtube-sync-receive", { detail: data }));
+    });
+
+    socket.on("screen-share-state", ({ isSharing }) => {
+      setRemoteIsSharing(Boolean(isSharing));
     });
   };
 
@@ -250,13 +267,134 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const stopScreenShare = useCallback(() => {
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current = null;
+    if (localScreenVideoRef.current) {
+      localScreenVideoRef.current.srcObject = null;
+    }
     if (localStreamRef.current) {
       const camTrack = localStreamRef.current.getVideoTracks()[0];
       pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(camTrack);
     }
     setIsSharing(false);
+    if (socketRef.current?.connected && roomId) {
+      socketRef.current.emit("screen-share-state", { roomId, isSharing: false });
+    }
     toast.info("Screen sharing stopped");
+  }, [roomId]);
+
+  const stopComposedRecorderResources = useCallback(() => {
+    if (recordingFrameRef.current) {
+      cancelAnimationFrame(recordingFrameRef.current);
+      recordingFrameRef.current = null;
+    }
+    composedStreamRef.current?.getTracks().forEach((t) => t.stop());
+    composedStreamRef.current = null;
+    if (composedAudioCtxRef.current && composedAudioCtxRef.current.state !== "closed") {
+      composedAudioCtxRef.current.close().catch(() => null);
+    }
+    composedAudioCtxRef.current = null;
   }, []);
+
+  const buildComposedMeetingStream = useCallback(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+
+    const remoteEl = remoteVideoRef.current;
+    const localEl = localVideoRef.current;
+    const localScreenEl = localScreenVideoRef.current;
+
+    const drawVideoCover = (videoEl: HTMLVideoElement, x: number, y: number, w: number, h: number) => {
+      const vw = videoEl.videoWidth || w;
+      const vh = videoEl.videoHeight || h;
+      const scale = Math.max(w / vw, h / vh);
+      const dw = vw * scale;
+      const dh = vh * scale;
+      const dx = x + (w - dw) / 2;
+      const dy = y + (h - dh) / 2;
+      ctx.drawImage(videoEl, dx, dy, dw, dh);
+    };
+
+    const draw = () => {
+      ctx.fillStyle = "#202124";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const remoteReady = !!remoteEl && remoteEl.readyState >= 2;
+      const localReady = !!localEl && localEl.readyState >= 2;
+      const localScreenReady = !!localScreenEl && localScreenEl.readyState >= 2;
+
+      const anyScreenShareActive = remoteIsSharing || (isSharing && localScreenReady);
+      if (anyScreenShareActive) {
+        if (remoteIsSharing && remoteReady && remoteEl) {
+          drawVideoCover(remoteEl, 0, 0, canvas.width, canvas.height);
+        } else if (isSharing && localScreenReady && localScreenEl) {
+          drawVideoCover(localScreenEl, 0, 0, canvas.width, canvas.height);
+        }
+        const pipW = 320;
+        const pipH = 180;
+        const pipX = canvas.width - pipW - 24;
+        const pipY = canvas.height - pipH - 24;
+        ctx.fillStyle = "rgba(0,0,0,0.45)";
+        ctx.fillRect(pipX, pipY, pipW, pipH);
+        if (localReady && localEl) {
+          drawVideoCover(localEl, pipX, pipY, pipW, pipH);
+        } else {
+          ctx.fillStyle = "#8ab4f8";
+          ctx.font = "bold 32px sans-serif";
+          ctx.fillText((user?.name?.[0] || "Y").toUpperCase(), pipX + pipW / 2 - 10, pipY + pipH / 2 + 12);
+        }
+      } else {
+        const colW = canvas.width / 2;
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillRect(0, 0, colW - 1, canvas.height);
+        ctx.fillRect(colW + 1, 0, colW - 1, canvas.height);
+
+        if (remoteReady && remoteEl) {
+          drawVideoCover(remoteEl, 0, 0, colW, canvas.height);
+        }
+        if (localReady && localEl) {
+          drawVideoCover(localEl, colW, 0, colW, canvas.height);
+        } else {
+          ctx.fillStyle = "#8ab4f8";
+          ctx.font = "bold 42px sans-serif";
+          ctx.fillText((user?.name?.[0] || "Y").toUpperCase(), colW + colW / 2 - 14, canvas.height / 2 + 16);
+        }
+      }
+
+      recordingFrameRef.current = requestAnimationFrame(draw);
+    };
+    draw();
+
+    const canvasStream = canvas.captureStream(30);
+    const composed = new MediaStream();
+    const vTrack = canvasStream.getVideoTracks()[0];
+    if (vTrack) composed.addTrack(vTrack);
+
+    const audioContext = new AudioContext();
+    composedAudioCtxRef.current = audioContext;
+    const audioDest = audioContext.createMediaStreamDestination();
+
+    const connectAudioTracks = (stream?: MediaStream | null) => {
+      if (!stream) return;
+      stream.getAudioTracks().forEach((track) => {
+        try {
+          const src = audioContext.createMediaStreamSource(new MediaStream([track]));
+          src.connect(audioDest);
+        } catch {
+          // no-op: skip invalid tracks
+        }
+      });
+    };
+
+    connectAudioTracks(localStreamRef.current);
+    connectAudioTracks(remoteStreamRef.current);
+    connectAudioTracks(screenStreamRef.current);
+
+    audioDest.stream.getAudioTracks().forEach((t) => composed.addTrack(t));
+    composedStreamRef.current = composed;
+    return composed;
+  }, [isSharing, remoteIsSharing, user?.name]);
 
   const startScreenShare = useCallback(async (preferCurrentTab: boolean) => {
     try {
@@ -269,16 +407,28 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         selfBrowserSurface: "include",
       } as DisplayMediaStreamOptions);
       screenStreamRef.current = stream;
+      if (localScreenVideoRef.current) {
+        localScreenVideoRef.current.srcObject = stream;
+        localScreenVideoRef.current.play().catch(() => null);
+      }
       const screenTrack = stream.getVideoTracks()[0];
+      screenTrack.contentHint = "detail";
       pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(screenTrack);
       setIsSharing(true);
       setShowSharePicker(false);
+      if (socketRef.current?.connected && roomId) {
+        socketRef.current.emit("screen-share-state", { roomId, isSharing: true });
+      }
+      if (preferCurrentTab) {
+        setIsMinimized(true);
+        toast.success("Call minimized. You can navigate this website while sharing.");
+      }
       screenTrack.onended = () => stopScreenShare();
       toast.success("Screen share started");
     } catch {
       toast.error("Screen share cancelled or denied");
     }
-  }, [stopScreenShare]);
+  }, [roomId, stopScreenShare]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -313,16 +463,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       mediaRecRef.current?.stop();
       setIsRecording(false);
     } else {
-      const streams = [
-        ...(localStreamRef.current?.getTracks() || []),
-        ...(remoteVideoRef.current?.srcObject instanceof MediaStream ? (remoteVideoRef.current.srcObject as MediaStream).getTracks() : []),
-      ];
-      if (!streams.length) return toast.error("Nothing to record");
-      const combined = new MediaStream(streams);
-      const rec = new MediaRecorder(combined, { mimeType: "video/webm;codecs=vp8,opus" });
+      const composed = buildComposedMeetingStream();
+      if (!composed || !composed.getVideoTracks().length) {
+        return toast.error("Nothing to record");
+      }
+      const rec = new MediaRecorder(composed, { mimeType: "video/webm;codecs=vp8,opus" });
       recordChunks.current = [];
       rec.ondataavailable = (e) => { if (e.data.size > 0) recordChunks.current.push(e.data); };
       rec.onstop = () => {
+        stopComposedRecorderResources();
         const blob = new Blob(recordChunks.current, { type: "video/webm" });
         const url  = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -333,6 +482,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       rec.start();
       mediaRecRef.current = rec;
       setIsRecording(true);
+      toast.success("Recording full meeting view");
     }
   };
 
@@ -367,11 +517,93 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   // Cleanup everything on unmount
   useEffect(() => {
     return () => {
+      if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
+        mediaRecRef.current.stop();
+      }
+      stopComposedRecorderResources();
       endCall(true);
     };
-  }, [endCall]);
+  }, [endCall, stopComposedRecorderResources]);
 
   if (!isOpen) return null;
+
+  if (isMinimized && callState === "connected") {
+    return (
+      <div className="fixed bottom-4 right-4 z-[120] w-80 rounded-2xl border border-white/15 bg-[#202124]/95 backdrop-blur-md shadow-2xl text-white p-3">
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-semibold tracking-wide truncate">{roomId}</p>
+          <button
+            onClick={() => setIsMinimized(false)}
+            className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center"
+            title="Restore Call"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-[11px] text-zinc-300 mb-3">
+          {isSharing ? "You are sharing this tab." : "Call is running in background."}
+        </p>
+        <div className="grid grid-cols-6 gap-2 mb-3">
+          <button
+            onClick={toggleMute}
+            className={`h-9 rounded-lg flex items-center justify-center ${isMuted ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
+            title={isMuted ? "Unmute" : "Mute"}
+          >
+            {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={toggleVideo}
+            className={`h-9 rounded-lg flex items-center justify-center ${isVideoOff ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
+            title={isVideoOff ? "Start video" : "Stop video"}
+          >
+            {isVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={toggleScreenShare}
+            className={`h-9 rounded-lg flex items-center justify-center ${isSharing ? "bg-blue-600/90" : "bg-white/10 hover:bg-white/20"}`}
+            title={isSharing ? "Stop sharing" : "Share screen"}
+          >
+            {isSharing ? <MonitorOff className="w-4 h-4" /> : <Monitor className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={toggleRecording}
+            className={`h-9 rounded-lg flex items-center justify-center ${isRecording ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
+            title={isRecording ? "Stop recording" : "Start recording"}
+          >
+            {isRecording ? <Square className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
+          </button>
+          <button
+            onClick={copyMeetingLink}
+            className="h-9 rounded-lg flex items-center justify-center bg-white/10 hover:bg-white/20"
+            title="Copy meeting link"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setShowSyncInput((v) => !v)}
+            className={`h-9 rounded-lg flex items-center justify-center ${showSyncInput ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
+            title="Stream YouTube"
+          >
+            <Youtube className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsMinimized(false)}
+            className="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-2 text-xs font-semibold"
+          >
+            Open Call
+          </button>
+          <button
+            onClick={() => endCall()}
+            className="rounded-lg bg-red-600 hover:bg-red-700 px-3 py-2 text-xs font-semibold"
+          >
+            End
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#202124] animate-in fade-in duration-300">
@@ -397,9 +629,17 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                 <div className="relative aspect-video bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl group border border-white/5">
                   {(isVideoOff || !user) ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#202124]">
-                      <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-3xl font-bold uppercase ring-8 ring-blue-600/20">
-                        {user?.name?.[0] || "?"}
-                      </div>
+                      {localAvatar ? (
+                        <img
+                          src={localAvatar}
+                          alt={user?.name || "Your profile"}
+                          className="w-24 h-24 rounded-full object-cover ring-8 ring-blue-600/20 border border-white/20"
+                        />
+                      ) : (
+                        <div className="w-24 h-24 rounded-full bg-blue-600 flex items-center justify-center text-3xl font-bold uppercase ring-8 ring-blue-600/20">
+                          {user?.name?.[0] || "?"}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
@@ -492,23 +732,33 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           {/* ACTIVE CALL VIEW (Video Grid) */}
           {callState === "connected" && (
             <div className="w-full h-full flex flex-col md:p-6 mb-20 transition-all duration-500">
-              <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-7xl mx-auto w-full">
+              <div className={`flex-1 ${remoteIsSharing ? "relative" : "grid grid-cols-1 md:grid-cols-2"} gap-4 max-w-7xl mx-auto w-full`}>
                 {/* Remote Participant */}
-                <div className="relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl aspect-video border border-white/5">
+                <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${remoteIsSharing ? "w-full h-full" : "aspect-video"}`}>
                   {/* Remote Video Stream - In a real Meet app, this would show the user's avatar if video is off */}
                   <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
                   <div className="absolute bottom-4 left-4 flex items-center gap-3">
-                    <span className="text-white text-xs font-medium bg-black/40 px-3 py-1.5 rounded-md backdrop-blur-md">Participant</span>
+                    <span className="text-white text-xs font-medium bg-black/40 px-3 py-1.5 rounded-md backdrop-blur-md">
+                      Participant {remoteIsSharing ? "• Sharing Screen" : ""}
+                    </span>
                   </div>
                 </div>
 
                 {/* Local Participant */}
-                <div className="relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl aspect-video border border-white/5">
+                <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${remoteIsSharing ? "absolute right-4 bottom-4 w-56 md:w-72 aspect-video z-20" : "aspect-video"}`}>
                   {isVideoOff ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#202124]">
-                      <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold uppercase">
-                        {user?.name?.[0] || "Y"}
-                      </div>
+                      {localAvatar ? (
+                        <img
+                          src={localAvatar}
+                          alt={user?.name || "Your profile"}
+                          className="w-20 h-20 rounded-full object-cover border border-white/20"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-blue-600 flex items-center justify-center text-xl font-bold uppercase">
+                          {user?.name?.[0] || "Y"}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
@@ -589,6 +839,14 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
               <div className="w-[1px] h-6 bg-white/10 mx-1" />
 
+              <button
+                onClick={() => setIsMinimized(true)}
+                className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-[#3c4043] hover:bg-[#4a4e51] flex items-center justify-center transition-all"
+                title="Minimize call"
+              >
+                <Minimize2 className="w-5 h-5 text-white" />
+              </button>
+
               <button 
                 onClick={() => endCall()} 
                 className="w-16 md:w-20 h-10 md:h-12 rounded-full bg-[#ea4335] hover:bg-[#d93025] flex items-center justify-center transition-all shadow-lg active:scale-95"
@@ -620,6 +878,13 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
         {callState === "connected" && (
           <div className="absolute bottom-24 right-4 flex lg:hidden items-center gap-2 z-30">
+            <button
+              onClick={() => setIsMinimized(true)}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-[#3c4043] hover:bg-[#4a4e51] text-white transition-all"
+              title="Minimize call"
+            >
+              <Minimize2 className="w-4 h-4" />
+            </button>
             <button
               onClick={copyMeetingLink}
               className="w-10 h-10 rounded-full flex items-center justify-center bg-[#3c4043] hover:bg-[#4a4e51] text-white transition-all"
@@ -689,6 +954,14 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
             </button>
           </div>
         )}
+
+        <video
+          ref={localScreenVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className="hidden"
+        />
 
         {/* Floating Close Button for non-call states */}
         {callState !== "connected" && (

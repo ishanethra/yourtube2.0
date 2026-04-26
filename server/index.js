@@ -78,6 +78,10 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("video-sync", data);
   });
 
+  socket.on("screen-share-state", ({ roomId, isSharing }) => {
+    socket.to(roomId).emit("screen-share-state", { isSharing: !!isSharing });
+  });
+
   socket.on("leave-room", (roomId) => {
     socket.leave(roomId);
     socket.to(roomId).emit("user-left", socket.id);
