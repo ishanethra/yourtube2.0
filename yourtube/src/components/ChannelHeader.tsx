@@ -4,6 +4,8 @@ import { Button } from "./ui/button";
 
 const ChannelHeader = ({ channel, user }: any) => {
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const channelName = channel?.channelname || channel?.name || "My Channel";
+  const channelHandle = channelName.toLowerCase().replace(/\s+/g, "");
   return (
     <div className="w-full">
       {/* Banner */}
@@ -14,14 +16,14 @@ const ChannelHeader = ({ channel, user }: any) => {
         <div className="flex flex-col md:flex-row gap-6 items-start">
           <Avatar className="w-20 h-20 md:w-32 md:h-32">
             <AvatarFallback className="text-2xl">
-              {channel?.channelname[0]}
+              {channelName[0]}
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1 space-y-2">
-            <h1 className="text-2xl md:text-4xl font-bold">{channel?.channelname}</h1>
+            <h1 className="text-2xl md:text-4xl font-bold">{channelName}</h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-              <span>@{channel?.channelname.toLowerCase().replace(/\s+/g, "")}</span>
+              <span>@{channelHandle}</span>
             </div>
             {channel?.description && (
               <p className="text-sm text-gray-700 max-w-2xl">

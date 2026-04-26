@@ -4,6 +4,7 @@ import ChannelVideos from "@/components/ChannelVideos";
 import VideoUploader from "@/components/VideoUploader";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
+import { sampleYoutubeVideos } from "@/lib/sampleVideos";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useState } from "react";
 
@@ -36,9 +37,33 @@ const ChannelPage = () => {
         setChannel(channelData);
         setVideos(channelVideos);
       } catch (error) {
-        console.error("Error fetching channel data:", error);
-        setChannel(null);
-        setVideos([]);
+        // Fallback for sample/non-DB channels (string uploader ids / sample channel names).
+        const sampleChannelVideos = sampleYoutubeVideos.filter((video: any) => {
+          const uploaderId =
+            typeof video?.uploader === "string" ? video.uploader : video?.uploader?._id;
+          const channelName = video?.videochanel;
+          return String(uploaderId || "") === String(id) || String(channelName || "") === String(id);
+        });
+
+        if (sampleChannelVideos.length > 0) {
+          const sampleName =
+            sampleChannelVideos[0]?.videochanel ||
+            sampleChannelVideos[0]?.uploader?.name ||
+            String(id);
+          const sampleImage = sampleChannelVideos[0]?.uploader?.image || "";
+          setChannel({
+            _id: String(id),
+            channelname: sampleName,
+            name: sampleName,
+            image: sampleImage,
+            description: "",
+          });
+          setVideos(sampleChannelVideos);
+        } else {
+          console.error("Error fetching channel data:", error);
+          setChannel(null);
+          setVideos([]);
+        }
       } finally {
         setLoading(false);
       }
@@ -87,4 +112,3 @@ const ChannelPage = () => {
 };
 
 export default ChannelPage;
-

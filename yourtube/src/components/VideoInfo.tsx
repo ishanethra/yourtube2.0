@@ -226,6 +226,12 @@ const VideoInfo = ({ video }: any) => {
     } catch (err) { console.error("Failed to copy link", err); }
   };
 
+  const handleOpenUploaderChannel = () => {
+    const targetChannelId = getTargetChannelId();
+    if (!targetChannelId) return;
+    router.push(`/channel/${encodeURIComponent(targetChannelId)}`);
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-1000">
       <div className="space-y-3">
@@ -236,7 +242,7 @@ const VideoInfo = ({ video }: any) => {
 
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-10">
         <div className="flex items-center gap-6 group">
-          <div className="relative cursor-pointer">
+          <div className="relative cursor-pointer" onClick={handleOpenUploaderChannel}>
             <Avatar className="w-16 h-16 ring-1 ring-black/5 dark:ring-white/10 group-hover:ring-zinc-400 dark:group-hover:ring-zinc-500 transition-all duration-700 overflow-hidden shadow-3xl bg-zinc-100 dark:bg-black rounded-2xl scale-100 group-hover:scale-110">
               <AvatarImage src={video.uploader?.image} className="object-cover" />
               <AvatarFallback className="bg-zinc-200 dark:bg-zinc-900 text-zinc-900 dark:text-white font-black italic text-xl">{video.videochanel?.[0]}</AvatarFallback>
@@ -247,7 +253,10 @@ const VideoInfo = ({ video }: any) => {
           </div>
           
           <div className="flex flex-col min-w-0 pr-4">
-            <h2 className="text-xl font-black uppercase tracking-tighter text-black dark:text-white truncate">
+            <h2
+              className="text-xl font-black uppercase tracking-tighter text-black dark:text-white truncate cursor-pointer hover:underline underline-offset-4"
+              onClick={handleOpenUploaderChannel}
+            >
               {video.videochanel || video.uploader?.name || "YouTube"}
             </h2>
             <div className="flex items-center gap-2 mt-1">
