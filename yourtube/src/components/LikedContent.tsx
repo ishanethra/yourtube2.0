@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { safeTimeAgo, safeNumber } from "@/lib/date";
 import { MoreVertical, X, ThumbsUp, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -89,9 +88,9 @@ export default function LikedVideosContent() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
         <p className="text-sm text-gray-600">{likedVideos.length} videos</p>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2 w-full sm:w-auto">
           <Play className="w-4 h-4" />
           Play all
         </Button>
@@ -99,9 +98,9 @@ export default function LikedVideosContent() {
 
       <div className="space-y-4">
         {likedVideos.map((item) => (
-          <div key={item._id} className="flex gap-4 group">
-            <Link href={`/watch/${item.videoid?._id}`} className="flex-shrink-0">
-              <div className="relative w-40 aspect-video bg-gray-100 rounded overflow-hidden">
+          <div key={item._id} className="flex flex-col sm:flex-row gap-3 sm:gap-4 group">
+            <Link href={`/watch/${item.videoid?._id}`} className="flex-shrink-0 w-full sm:w-auto">
+              <div className="relative w-full sm:w-40 aspect-video bg-gray-100 rounded overflow-hidden">
                 {item.videoid?.youtubeId ? (
                    <img 
                       src={`https://img.youtube.com/vi/${item.videoid.youtubeId}/mqdefault.jpg`}
@@ -140,7 +139,7 @@ export default function LikedVideosContent() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                  className="opacity-100 md:opacity-0 md:group-hover:opacity-100 self-end sm:self-auto"
                 >
                   <MoreVertical className="w-4 h-4" />
                 </Button>

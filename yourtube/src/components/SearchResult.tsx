@@ -84,9 +84,9 @@ const SearchResult = ({ query }: any) => {
             : null;
 
           return (
-            <div key={vid._id} className="flex gap-4 group">
-              <Link href={`/watch/${vid._id}`} className="flex-shrink-0">
-                <div className="relative w-72 sm:w-80 aspect-video bg-zinc-100 dark:bg-zinc-800 rounded-xl overflow-hidden">
+            <div key={vid._id} className="flex flex-col sm:flex-row gap-4 group">
+              <Link href={`/watch/${vid._id}`} className="flex-shrink-0 w-full sm:w-auto">
+                <div className="relative w-full sm:w-72 md:w-80 aspect-video bg-zinc-100 dark:bg-zinc-800 rounded-xl overflow-hidden">
                   {thumbnail ? (
                     <img
                       src={thumbnail}
@@ -108,7 +108,7 @@ const SearchResult = ({ query }: any) => {
                   </h3>
                 </Link>
 
-                <div className="flex items-center gap-2 text-sm text-zinc-500 mb-2">
+                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm text-zinc-500 mb-2">
                   <span>{safeNumber(vid.views).toLocaleString()} views</span>
                   <span>•</span>
                   <span>{safeTimeAgo(vid.createdAt)}</span>

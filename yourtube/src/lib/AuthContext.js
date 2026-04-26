@@ -332,6 +332,16 @@ export const UserProvider = ({ children }) => {
     // Start prefetching location immediately to save time
     locationRef.current = getLocationFromBrowser();
     try {
+      // Force account-chooser behavior on every explicit sign-in click.
+      // This prevents automatic reuse of a background Firebase session.
+      try {
+        await signOut(auth);
+      } catch (_) {
+        // No active session to clear; continue.
+      }
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
       const result = await signInWithPopup(auth, provider);
       console.log("DEBUG: Google Sign-in Popup settled. Triggering OTP flow...");
       if (result.user) {
@@ -346,6 +356,7 @@ export const UserProvider = ({ children }) => {
       } else {
         toast.error(`Sign-in Error: ${error.message}`);
       }
+      setIsAuthLoading(false);
     }
   };
 
