@@ -82,6 +82,10 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("screen-share-state", { isSharing: !!isSharing });
   });
 
+  socket.on("camera-state", ({ roomId, isVideoOn }) => {
+    socket.to(roomId).emit("camera-state", { isVideoOn: !!isVideoOn });
+  });
+
   socket.on("leave-room", (roomId) => {
     socket.leave(roomId);
     socket.to(roomId).emit("user-left", socket.id);

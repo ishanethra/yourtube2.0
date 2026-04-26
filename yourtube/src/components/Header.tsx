@@ -12,7 +12,6 @@ import {
 } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Channeldialogue from "./channeldialogue";
-import VoIPCallManager from "./VoIPCallManager";
 import { useRouter } from "next/router";
 import { useUser } from "@/lib/AuthContext";
 
@@ -26,7 +25,6 @@ const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
   // };
   const [searchQuery, setSearchQuery] = useState("");
   const [isdialogeopen, setisdialogeopen] = useState(false);
-  const [isVoipOpen, setIsVoipOpen] = useState(false);
   const router = useRouter();
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,7 +92,7 @@ const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
         
         {user ? (
           <>
-            <Button variant="ghost" size="icon" className="flex" onClick={() => setIsVoipOpen(true)}>
+            <Button variant="ghost" size="icon" className="flex" onClick={() => router.push("/calls")}>
               <VideoIcon className="w-5 h-5 sm:w-6 h-6" />
             </Button>
             <Button variant="ghost" size="icon">
@@ -176,13 +174,6 @@ const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
         onclose={() => setisdialogeopen(false)}
         mode="create"
       />
-      {isVoipOpen && (
-        <VoIPCallManager 
-          isOpen={isVoipOpen} 
-          onClose={() => setIsVoipOpen(false)} 
-          userName={user?.name || ""} 
-        />
-      )}
     </header>
   );
 };

@@ -32,6 +32,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [callState,    setCallState]    = useState<"idle"|"preparing"|"lobby"|"calling"|"connected">("idle");
   const [isMuted,      setIsMuted]      = useState(false);
   const [isVideoOff,   setIsVideoOff]   = useState(false);
+  const [remoteVideoOff, setRemoteVideoOff] = useState(false);
+  const [remotePresent, setRemotePresent] = useState(false);
   const [isSharing,    setIsSharing]    = useState(false);
   const [remoteIsSharing, setRemoteIsSharing] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -95,6 +97,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     setCallDuration(0);
     setIsSharing(false);
     setRemoteIsSharing(false);
+    setRemoteVideoOff(false);
+    setRemotePresent(false);
     setIsMinimized(false);
     if (!silent) toast.info("Call ended");
   }, [roomId]);
@@ -114,12 +118,14 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("connect", () => {
       socket.emit("join-room", room);
+      socket.emit("camera-state", { roomId: room, isVideoOn: !isVideoOff });
       setCallState("connected");
       startDurationTimer();
     });
 
     socket.on("user-joined", () => {
       toast.info(`A user joined the room`);
+      setRemotePresent(true);
       makeOffer(room);
     });
 
@@ -129,12 +135,14 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       socket.emit("webrtc-answer", { roomId: room, answer });
+      setRemotePresent(true);
       setCallState("connected");
       startDurationTimer();
     });
 
     socket.on("webrtc-answer", async ({ answer }) => {
       await pcRef.current?.setRemoteDescription(new RTCSessionDescription(answer));
+      setRemotePresent(true);
       setCallState("connected");
       startDurationTimer();
     });
@@ -146,6 +154,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     socket.on("user-left", () => {
       toast.info("Participant disconnected");
       setRemoteIsSharing(false);
+      setRemoteVideoOff(false);
+      setRemotePresent(false);
       if (remoteStreamRef.current) {
         remoteStreamRef.current.getTracks().forEach((t) => t.stop());
         remoteStreamRef.current = new MediaStream();
@@ -160,6 +170,10 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("screen-share-state", ({ isSharing }) => {
       setRemoteIsSharing(Boolean(isSharing));
+    });
+
+    socket.on("camera-state", ({ isVideoOn }) => {
+      setRemoteVideoOff(!Boolean(isVideoOn));
     });
   };
 
@@ -216,6 +230,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const startLocalMedia = async () => {
     try {
+      if (localStreamRef.current) return;
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStreamRef.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
@@ -445,7 +460,11 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const videoTrack = localStreamRef.current.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoOff(!videoTrack.enabled);
+        const nextOff = !videoTrack.enabled;
+        setIsVideoOff(nextOff);
+        if (socketRef.current?.connected && roomId) {
+          socketRef.current.emit("camera-state", { roomId, isVideoOn: !nextOff });
+        }
       }
     }
   };
@@ -732,20 +751,64 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           {/* ACTIVE CALL VIEW (Video Grid) */}
           {callState === "connected" && (
             <div className="w-full h-full flex flex-col md:p-6 mb-20 transition-all duration-500">
-              <div className={`flex-1 ${remoteIsSharing ? "relative" : "grid grid-cols-1 md:grid-cols-2"} gap-4 max-w-7xl mx-auto w-full`}>
+              {!remotePresent && (
+                <div className="mb-3 mx-auto w-full max-w-7xl rounded-xl border border-blue-500/30 bg-blue-500/10 px-4 py-2 text-sm text-blue-200 flex items-center justify-between gap-3">
+                  <span>Waiting for participants to join this meeting...</span>
+                  <button
+                    onClick={copyMeetingLink}
+                    className="text-xs px-3 py-1 rounded-full border border-blue-300/40 hover:bg-blue-400/20 transition-all"
+                  >
+                    Copy Invite Link
+                  </button>
+                </div>
+              )}
+              <div
+                className={`flex-1 ${
+                  remotePresent
+                    ? remoteIsSharing
+                      ? "relative"
+                      : "grid grid-cols-1 md:grid-cols-2"
+                    : "grid grid-cols-1"
+                } gap-4 max-w-7xl mx-auto w-full`}
+              >
                 {/* Remote Participant */}
+                {remotePresent && (
                 <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${remoteIsSharing ? "w-full h-full" : "aspect-video"}`}>
                   {/* Remote Video Stream - In a real Meet app, this would show the user's avatar if video is off */}
-                  <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                  <video
+                    ref={remoteVideoRef}
+                    autoPlay
+                    playsInline
+                    className={`w-full h-full object-cover transition-opacity ${remoteVideoOff ? "opacity-0" : "opacity-100"}`}
+                  />
+                  {remoteVideoOff && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#202124]">
+                      <div className="w-20 h-20 rounded-full bg-zinc-600 flex items-center justify-center text-2xl font-bold uppercase">
+                        P
+                      </div>
+                      <p className="mt-3 text-sm text-zinc-300">
+                        Participant camera is off
+                      </p>
+                    </div>
+                  )}
                   <div className="absolute bottom-4 left-4 flex items-center gap-3">
                     <span className="text-white text-xs font-medium bg-black/40 px-3 py-1.5 rounded-md backdrop-blur-md">
-                      Participant {remoteIsSharing ? "• Sharing Screen" : ""}
+                      {remoteIsSharing
+                        ? "Participant • Sharing Screen"
+                        : remoteVideoOff
+                        ? "Participant • Camera Off"
+                        : "Participant • Connected"}
                     </span>
                   </div>
                 </div>
+                )}
 
                 {/* Local Participant */}
-                <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${remoteIsSharing ? "absolute right-4 bottom-4 w-56 md:w-72 aspect-video z-20" : "aspect-video"}`}>
+                <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${
+                  remotePresent && remoteIsSharing
+                    ? "absolute right-4 bottom-4 w-56 md:w-72 aspect-video z-20"
+                    : "aspect-video"
+                }`}>
                   {isVideoOff ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#202124]">
                       {localAvatar ? (
