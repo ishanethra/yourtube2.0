@@ -511,17 +511,55 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     }
   };
 
-  const toggleVideo = () => {
-    if (localStreamRef.current) {
-      const videoTrack = localStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        const nextOff = !videoTrack.enabled;
-        setIsVideoOff(nextOff);
-        if (socketRef.current?.connected && roomId) {
-          socketRef.current.emit("camera-state", { roomId, isVideoOn: !nextOff });
-        }
+  const toggleVideo = async () => {
+    try {
+      if (!localStreamRef.current) {
+        await startLocalMedia();
       }
+      const stream = localStreamRef.current;
+      if (!stream) return;
+
+      const currentTrack = stream.getVideoTracks()[0];
+
+      if (!isVideoOff) {
+        // Turn OFF: stop and remove camera track so re-enable gets a fresh device track.
+        if (currentTrack) {
+          currentTrack.stop();
+          stream.removeTrack(currentTrack);
+        }
+        if (!isSharing) {
+          const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+          if (sender) await sender.replaceTrack(null);
+        }
+        setIsVideoOff(true);
+        if (socketRef.current?.connected && roomId) {
+          socketRef.current.emit("camera-state", { roomId, isVideoOn: false });
+        }
+        return;
+      }
+
+      // Turn ON: reacquire fresh track and attach everywhere.
+      const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const freshTrack = camStream.getVideoTracks()[0];
+      if (!freshTrack) return;
+      stream.addTrack(freshTrack);
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+        localVideoRef.current.play().catch(() => null);
+      }
+
+      if (!isSharing) {
+        const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+        if (sender) await sender.replaceTrack(freshTrack);
+      }
+
+      setIsVideoOff(false);
+      if (socketRef.current?.connected && roomId) {
+        socketRef.current.emit("camera-state", { roomId, isVideoOn: true });
+      }
+    } catch (err) {
+      toast.error("Could not toggle camera. Check camera permission.");
     }
   };
 
