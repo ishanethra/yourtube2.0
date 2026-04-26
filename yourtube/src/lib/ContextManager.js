@@ -9,6 +9,8 @@ const ContextManager = createContext({
   isCallOpen: false,
   openCallManager: () => {},
   closeCallManager: () => {},
+  isCallMinimized: false,
+  setIsCallMinimized: () => {},
 });
 
 export const ContextProvider = ({ children }) => {
@@ -17,6 +19,7 @@ export const ContextProvider = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [lastThemeTickMinute, setLastThemeTickMinute] = useState(-1);
   const [isCallOpen, setIsCallOpen] = useState(false);
+  const [isCallMinimized, setIsCallMinimized] = useState(false);
 
   const openCallManager = () => setIsCallOpen(true);
   const closeCallManager = () => setIsCallOpen(false);
@@ -190,7 +193,8 @@ export const ContextProvider = ({ children }) => {
   return (
     <ContextManager.Provider value={{ 
       theme, locationData, sidebarCollapsed, toggleSidebar, closeSidebar,
-      isCallOpen, openCallManager, closeCallManager
+      isCallOpen, openCallManager, closeCallManager,
+      isCallMinimized, setIsCallMinimized
     }}>
       {children}
     </ContextManager.Provider>

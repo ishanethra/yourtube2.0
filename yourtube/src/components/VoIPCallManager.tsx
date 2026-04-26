@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import { useUser } from "@/lib/AuthContext";
 import { io, Socket } from "socket.io-client";
+import { useAppStatus } from "@/lib/ContextManager";
 
 const resolveWsUrl = () => {
   if (process.env.NEXT_PUBLIC_VOIP_WS_URL) return process.env.NEXT_PUBLIC_VOIP_WS_URL;
@@ -37,7 +38,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [remotePresent, setRemotePresent] = useState(false);
   const [isSharing,    setIsSharing]    = useState(false);
   const [remoteIsSharing, setRemoteIsSharing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const { isCallMinimized: isMinimized, setIsCallMinimized: setIsMinimized } = useAppStatus() as any;
   const [isRecording,  setIsRecording]  = useState(false);
   const [showSyncInput, setShowSyncInput] = useState(false);
   const [showSharePicker, setShowSharePicker] = useState(false);
