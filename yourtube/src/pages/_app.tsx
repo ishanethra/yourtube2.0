@@ -3,6 +3,7 @@ import Sidebar from "@/components/Sidebar";
 import { Toaster } from "@/components/ui/sonner";
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
+import Head from "next/head";
 import { UserProvider } from "../lib/AuthContext";
 import { ContextProvider, useAppStatus } from "@/lib/ContextManager";
 import PremiumModal from "@/components/PremiumModal";
@@ -12,7 +13,9 @@ const AppContent = ({ Component, pageProps }: { Component: any, pageProps: any }
   
   return (
     <div className="h-dvh min-h-dvh w-screen max-w-screen flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-500 overflow-hidden">
-      <title>youtube2.0</title>
+      <Head>
+        <title>youtube2.0</title>
+      </Head>
       <Header onToggleSidebar={toggleSidebar} />
       <div className="flex flex-1 min-h-0 relative">
         <Sidebar collapsed={sidebarCollapsed} onClose={closeSidebar} />

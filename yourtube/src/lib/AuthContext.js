@@ -360,11 +360,15 @@ export const UserProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Re-run through login logic to sanitize any existing "undefined" strings
-      login(parsed);
+    try {
+      const stored = localStorage.getItem("user");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        // Re-run through login logic to sanitize any existing "undefined" strings
+        login(parsed);
+      }
+    } catch (_) {
+      localStorage.removeItem("user");
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseuser) => {
