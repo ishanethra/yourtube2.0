@@ -46,7 +46,7 @@ export const startRazorpayPayment = async ({
     key,
     amount: order.amount,
     currency: order.currency,
-    name: "YourTube",
+    name: "youtube2.0",
     description: purpose === "plan" ? `Plan upgrade to ${plan}` : "Premium download",
     order_id: order.id,
     handler: async (response: any) => {

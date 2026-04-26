@@ -166,7 +166,7 @@ const Sidebar = ({ collapsed = false, onClose }: { collapsed?: boolean; onClose?
                 </Button>
               </Link>
               {user?.channelname ? (
-                <Link href={`/channel/${user.id}`}>
+                <Link href={`/channel/${user._id || user.id}`}>
                   <Button
                     variant="ghost"
                     className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}

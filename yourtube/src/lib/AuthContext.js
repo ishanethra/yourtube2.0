@@ -5,6 +5,9 @@ import axiosInstance from "@/lib/axiosinstance";
 import { toast } from "sonner";
 
 const UserContext = createContext();
+const isDev = process.env.NODE_ENV === "development";
+const debugLog = (...args) => { if (isDev) console.log(...args); };
+const debugWarn = (...args) => { if (isDev) console.warn(...args); };
 
 const getLocationFromBrowser = async () => {
   const fetchIPAPI = async () => {
@@ -55,11 +58,11 @@ const getLocationFromBrowser = async () => {
     // Attempt GPS with 2s timeout for snappier experience
     const gpsResult = await Promise.race([gpsPromise, timeoutPromise]);
     if (gpsResult && gpsResult.city !== "Unknown") {
-      console.log("DEBUG: Precise GPS Location obtained:", gpsResult.city);
+      debugLog("DEBUG: Precise GPS Location obtained:", gpsResult.city);
       return gpsResult;
     }
   } catch (e) {
-    console.log("DEBUG: GPS timed out or failed, falling back to IP detection.");
+    debugLog("DEBUG: GPS timed out or failed, falling back to IP detection.");
   }
 
   // Fallback to fast IP-based sources
@@ -67,11 +70,11 @@ const getLocationFromBrowser = async () => {
   try {
     const ipResult = await Promise.any(fastSources.map(p => p.then(res => res || Promise.reject())));
     if (ipResult) {
-      console.log("DEBUG: Quick IP Location result obtained:", ipResult.source);
+      debugLog("DEBUG: Quick IP Location result obtained:", ipResult.source);
       return ipResult;
     }
   } catch (e) {
-    console.log("DEBUG: All location sources failed.");
+    debugLog("DEBUG: All location sources failed.");
   }
 
   return { city: "Unknown", state: "Unknown" };
@@ -130,7 +133,7 @@ export const UserProvider = ({ children }) => {
 
     // Sanity check: If we still don't have an _id, we shouldn't save a broken session
     if (!sanitizedUser._id) {
-       console.warn("DEBUG: Login attempted with missing _id. Data:", userdata);
+       debugWarn("DEBUG: Login attempted with missing _id. Data:", userdata);
     }
 
     setUser(sanitizedUser);
@@ -199,7 +202,7 @@ export const UserProvider = ({ children }) => {
       state: location.state,
     };
 
-    console.log(`DEBUG: Final Auth Payload -> Email: ${payload.email} | State: ${payload.state} | City: ${payload.city}`);
+    debugLog(`DEBUG: Final Auth Payload -> Email: ${payload.email} | State: ${payload.state} | City: ${payload.city}`);
 
     let startRes;
     try {
@@ -272,9 +275,9 @@ export const UserProvider = ({ children }) => {
     
     // Developer Fallback: Only log for the primary owner to ensure you are never blocked
     if (firebaseuser.email?.toLowerCase().trim() === "nethra2257@gmail.com") {
-      console.log("-----------------------------------------");
-      console.log("YourTube 2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
-      console.log("-----------------------------------------");
+      debugLog("-----------------------------------------");
+      debugLog("youtube2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
+      debugLog("-----------------------------------------");
     }
 
     const otp = await requestAuthInput({
@@ -304,7 +307,7 @@ export const UserProvider = ({ children }) => {
       
       const displayName = userData?.name || userData?.channelname || userData?.email?.split('@')[0] || "User";
       toast.success(`Welcome back, ${displayName}`);
-      console.log("SUCCESS: User signed in and verified with OTP locally");
+      debugLog("SUCCESS: User signed in and verified with OTP locally");
     } catch (error) {
       console.error("DEBUG: OTP Login Failed", error);
       const serverMessage = error?.response?.data?.message || "Login failed";
@@ -323,7 +326,7 @@ export const UserProvider = ({ children }) => {
   const isProcessingAuthRef = useRef(false);
 
   useEffect(() => {
-    console.log("DEBUG: AuthContext current user state updated:", user);
+    debugLog("DEBUG: AuthContext current user state updated:", user);
   }, [user]);
 
   const handlegooglesignin = async () => {
@@ -343,7 +346,7 @@ export const UserProvider = ({ children }) => {
         prompt: "select_account",
       });
       const result = await signInWithPopup(auth, provider);
-      console.log("DEBUG: Google Sign-in Popup settled. Triggering OTP flow...");
+      debugLog("DEBUG: Google Sign-in Popup settled. Triggering OTP flow...");
       if (result.user) {
         await beginOtpLogin(result.user);
       }
@@ -380,7 +383,7 @@ export const UserProvider = ({ children }) => {
       // v2.0 Change: Do not automatically trigger OTP flow on background session detection.
       // This allows guests to browse freely without being interrupted by popups.
       // The user must explicitly click "Sign In" to start the beginOtpLogin flow.
-      console.log("DEBUG: Background Firebase session found for", firebaseuser.email, "- Waiting for explicit sign-in.");
+      debugLog("DEBUG: Background Firebase session found for", firebaseuser.email, "- Waiting for explicit sign-in.");
     });
 
     return () => unsubscribe();

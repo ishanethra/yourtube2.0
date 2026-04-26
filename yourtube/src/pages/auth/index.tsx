@@ -18,7 +18,7 @@ const AuthPage = () => {
   return (
     <div className="min-h-screen bg-white dark:bg-zinc-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <Head>
-        <title>Sign In - YourTube</title>
+        <title>Sign In - youtube2.0</title>
       </Head>
 
       {/* Background Decor */}
@@ -33,7 +33,7 @@ const AuthPage = () => {
             <Youtube className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white">
-            YourTube
+            youtube2.0
           </h1>
           <p className="text-gray-500 dark:text-gray-400 font-medium">
             Sign in to subscribe to channels, like videos, and save them for later.
@@ -75,7 +75,7 @@ const AuthPage = () => {
 
       {/* Footer */}
       <div className="mt-8 text-center text-gray-400 text-sm font-medium">
-        &copy; 2026 YourTube. All rights reserved.
+        &copy; 2026 youtube2.0. All rights reserved.
       </div>
     </div>
   );

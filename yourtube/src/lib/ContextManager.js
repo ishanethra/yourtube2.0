@@ -12,6 +12,7 @@ export const ContextProvider = ({ children }) => {
   const [theme, setTheme] = useState("dark");
   const [locationData, setLocationData] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [lastThemeTickMinute, setLastThemeTickMinute] = useState(-1);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.localStorage) {
@@ -49,20 +50,24 @@ export const ContextProvider = ({ children }) => {
   ];
 
   const applyLightTheme = () => {
-    setTheme("light");
+    setTheme((prev) => (prev === "light" ? prev : "light"));
     if (typeof window !== "undefined") {
-      document.documentElement.classList.remove("dark");
-      document.body.classList.remove("dark");
-      localStorage.setItem("yourtube_theme", "light");
+      if (document.documentElement.classList.contains("dark")) {
+        document.documentElement.classList.remove("dark");
+        document.body.classList.remove("dark");
+        localStorage.setItem("yourtube_theme", "light");
+      }
     }
   };
 
   const applyDarkTheme = () => {
-    setTheme("dark");
+    setTheme((prev) => (prev === "dark" ? prev : "dark"));
     if (typeof window !== "undefined") {
-      document.documentElement.classList.add("dark");
-      document.body.classList.add("dark");
-      localStorage.setItem("yourtube_theme", "dark");
+      if (!document.documentElement.classList.contains("dark")) {
+        document.documentElement.classList.add("dark");
+        document.body.classList.add("dark");
+        localStorage.setItem("yourtube_theme", "dark");
+      }
     }
   };
 
@@ -80,9 +85,7 @@ export const ContextProvider = ({ children }) => {
     
     const newTheme = (isSouthIndia && isMorningWindow) ? "light" : "dark";
     
-    if (data) {
-      console.log(`[Theme Engine] Profile: ${data.region || 'External'} | IST Hour: ${hours} | Match: ${newTheme}`);
-    }
+    // Avoid noisy production logs in critical UI path.
 
     if (newTheme === "light") {
       applyLightTheme();
@@ -132,7 +135,7 @@ export const ContextProvider = ({ children }) => {
             localStorage.setItem("yourtube_location", JSON.stringify(location));
           }
           updateTheme(location);
-          console.log("DEBUG: Precise Location via GPS (English):", location.city);
+          // Location resolved successfully.
         } catch (error) {
           console.error("DEBUG: Precision Sync Error (Falling back to IP):", error);
           // Fallback to IP if Nominatim fails
@@ -161,10 +164,21 @@ export const ContextProvider = ({ children }) => {
     detectContext();
   }, []);
 
+  // Keep theme in sync with time rule without causing frequent UI churn.
   useEffect(() => {
-    const heartbeat = setInterval(() => updateTheme(locationData), 10000);
+    const heartbeat = setInterval(() => {
+      const now = new Date();
+      const utcOffset = now.getTimezoneOffset() * 60000;
+      const istOffset = 5.5 * 3600000;
+      const istDate = new Date(now.getTime() + utcOffset + istOffset);
+      const minute = istDate.getHours() * 60 + istDate.getMinutes();
+      if (minute !== lastThemeTickMinute) {
+        setLastThemeTickMinute(minute);
+        updateTheme(locationData);
+      }
+    }, 60000);
     return () => clearInterval(heartbeat);
-  }, [locationData]);
+  }, [locationData, lastThemeTickMinute]);
 
   return (
     <ContextManager.Provider value={{ theme, locationData, sidebarCollapsed, toggleSidebar, closeSidebar }}>

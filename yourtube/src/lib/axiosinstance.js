@@ -5,8 +5,8 @@ const axiosInstance = axios.create({
   baseURL,
 });
 
-if (typeof window !== "undefined") {
-  console.log("DEBUG: YourTube Backend connected at:", baseURL);
+if (typeof window !== "undefined" && process.env.NODE_ENV === "development") {
+  console.log("DEBUG: Backend connected at:", baseURL);
 }
 
 export default axiosInstance;

@@ -232,7 +232,7 @@ export default function PremiumStore() {
             </h2>
             <p className="text-zinc-600 font-bold italic text-sm mb-12 max-w-xl mx-auto">
               All memberships include high-speed routing and priority library sync. 
-              Join a community of premium creators on YourTube.
+              Join a community of premium creators on youtube2.0.
             </p>
             <div className="flex flex-wrap justify-center gap-12 opacity-30 grayscale hover:grayscale-0 transition-all duration-700">
                <div className="flex items-center gap-3">

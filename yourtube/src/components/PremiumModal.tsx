@@ -79,7 +79,7 @@ const PremiumModal = () => {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_SbOVjofS5dym68",
         amount: order.amount,
         currency: order.currency,
-        name: "YourTube Premium",
+        name: "youtube2.0 Premium",
         description: `${plan.name} Plan Subscription`,
         order_id: order.id,
         handler: async (response: any) => {

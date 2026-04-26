@@ -19,7 +19,7 @@ const AdCard = () => {
       <div className="p-4 space-y-3">
         <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <h3 className="font-bold text-sm text-black dark:text-white line-clamp-1 italic tracking-tight">YourTube Creator Awards 2026</h3>
+            <h3 className="font-bold text-sm text-black dark:text-white line-clamp-1 italic tracking-tight">youtube2.0 Creator Awards 2026</h3>
             <p className="text-[10px] text-zinc-500 font-medium uppercase tracking-wider">Join the global event</p>
           </div>
           <div className="flex items-center gap-1 bg-yellow-500/10 px-2 py-0.5 rounded border border-yellow-500/20">
