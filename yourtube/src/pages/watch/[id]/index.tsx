@@ -3,15 +3,17 @@ import RelatedVideos from "@/components/RelatedVideos";
 import VideoInfo from "@/components/VideoInfo";
 import GestureVideoPlayer from "@/components/GestureVideoPlayer";
 import axiosInstance from "@/lib/axiosinstance";
-import { useUser } from "@/lib/AuthContext";
-import { sampleYoutubeVideos } from "@/lib/sampleVideos";
 import { useRouter } from "next/router";
 import React, { useEffect, useRef, useState } from "react";
+import { useUser } from "@/lib/AuthContext";
+import { sampleYoutubeVideos } from "@/lib/sampleVideos";
+import { useAppStatus } from "@/lib/ContextManager";
 
 const WatchVideoPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const { user } = useUser();
+  const { openCallManager } = useAppStatus() as any;
   const commentRef = useRef<HTMLDivElement>(null);
   const [currentVideo, setCurrentVideo] = useState<any>(null);
   const [relatedVideos, setRelatedVideos] = useState<any[]>([]);
@@ -86,14 +88,17 @@ const WatchVideoPage = () => {
   const handleStartVideoCall = () => {
     if (!currentVideo?._id) return;
     const roomSeed = `watch-${currentVideo._id}`;
-    router.push({
-      pathname: "/calls",
-      query: {
-        room: roomSeed,
-        video: currentVideo._id,
-        title: currentVideo.videotitle,
-      },
-    });
+    openCallManager();
+    if (router.query.room !== roomSeed) {
+      router.replace(
+        {
+          pathname: router.pathname,
+          query: { ...router.query, room: roomSeed, video: currentVideo._id, title: currentVideo.videotitle },
+        },
+        undefined,
+        { shallow: true }
+      );
+    }
   };
 
   return (

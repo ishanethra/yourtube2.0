@@ -14,9 +14,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import Channeldialogue from "./channeldialogue";
 import { useRouter } from "next/router";
 import { useUser } from "@/lib/AuthContext";
+import { useAppStatus } from "@/lib/ContextManager";
 
 const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
   const { user, logout, handlegooglesignin, isAuthLoading } = useUser();
+  const { openCallManager } = useAppStatus() as any;
   // const user: any = {
   //   id: "1",
   //   name: "John Doe",
@@ -92,7 +94,7 @@ const Header = ({ onToggleSidebar }: { onToggleSidebar: () => void }) => {
         
         {user ? (
           <>
-            <Button variant="ghost" size="icon" className="flex" onClick={() => router.push("/calls")}>
+            <Button variant="ghost" size="icon" className="flex" onClick={openCallManager}>
               <VideoIcon className="w-5 h-5 sm:w-6 h-6" />
             </Button>
             <Button variant="ghost" size="icon">
