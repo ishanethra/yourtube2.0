@@ -108,8 +108,11 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     setRemotePresent(false);
     setIsMinimized(false);
     setMicLevel(0);
-    if (!silent) toast.info("Call ended");
-  }, [roomId]);
+    if (!silent) {
+      toast.info("Call ended");
+      onClose();
+    }
+  }, [roomId, onClose]);
 
   useEffect(() => {
     if (isOpen && router.query.room && callState === "idle") {
