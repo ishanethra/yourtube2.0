@@ -127,6 +127,12 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       startDurationTimer();
     });
 
+    socket.on("connect_error", () => {
+      // Keep user inside meeting UI so they can still wait and retry links.
+      setCallState("connected");
+      toast.error("Realtime server reconnecting. Stay on this screen.");
+    });
+
     socket.on("user-joined", () => {
       toast.info(`A user joined the room`);
       setRemotePresent(true);
@@ -293,6 +299,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const id = Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + 
                  Math.random().toString(36).slice(2, 6).toUpperCase();
       setRoomId(id);
+      // Enter meeting room immediately and show waiting state.
+      setCallState("connected");
+      startDurationTimer();
       connectWS(id);
       toast.success("Meeting room prepared!");
     } catch { 
@@ -317,7 +326,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         await startLocalMedia();
       }
       setRoomId(idToJoin);
-      setCallState("calling");
+      // Enter meeting view immediately while signaling connects.
+      setCallState("connected");
+      startDurationTimer();
       connectWS(idToJoin);
     } catch { 
       setCallState("idle");
