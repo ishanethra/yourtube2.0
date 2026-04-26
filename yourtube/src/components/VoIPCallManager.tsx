@@ -308,7 +308,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       setRoomId(id);
       
       // Sync room ID to URL so reloading or sharing works out-of-the-box
-      router.replace({ pathname: "/calls", query: { ...router.query, room: id } }, undefined, { shallow: true });
+      router.replace({ pathname: router.pathname, query: { ...router.query, room: id } }, undefined, { shallow: true });
       
       // Enter meeting room immediately and show waiting state.
       setCallState("connected");
@@ -341,7 +341,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       
       // Sync room ID to URL so reloading or sharing works out-of-the-box
       if (router.query.room !== idToJoin) {
-        router.replace({ pathname: "/calls", query: { ...router.query, room: idToJoin } }, undefined, { shallow: true });
+        router.replace({ pathname: router.pathname, query: { ...router.query, room: idToJoin } }, undefined, { shallow: true });
       }
 
       // Enter meeting view immediately while signaling connects.

@@ -16,11 +16,13 @@ import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
 import Channeldialogue from "./channeldialogue";
 import { useUser } from "@/lib/AuthContext";
+import { useAppStatus } from "@/lib/ContextManager";
 import { useRouter } from "next/router";
 
 const Sidebar = ({ collapsed = false, onClose }: { collapsed?: boolean; onClose?: () => void }) => {
   const { user } = useUser();
   const router = useRouter();
+  const { openCallManager } = useAppStatus() as any;
 
   const [isHovered, setIsHovered] = useState(false);
   const [isdialogeopen, setisdialogeopen] = useState(false);
@@ -154,17 +156,20 @@ const Sidebar = ({ collapsed = false, onClose }: { collapsed?: boolean; onClose?
                   {!effectiveCollapsed && "Upgrade Plans"}
                 </Button>
               </Link>
-              <Link href="/calls">
+              <div>
                 <Button
                   variant="ghost"
                   className={`w-full ${effectiveCollapsed ? "justify-center" : "justify-start"}`}
                   title="Video calls"
-                  onClick={handleNavClick}
+                  onClick={() => {
+                    handleNavClick();
+                    openCallManager();
+                  }}
                 >
                   <Phone className={`w-5 h-5 ${effectiveCollapsed ? "" : "mr-3"}`} />
                   {!effectiveCollapsed && "Video Calls"}
                 </Button>
-              </Link>
+              </div>
               {user?.channelname ? (
                 <Link href={`/channel/${user._id || user.id}`}>
                   <Button

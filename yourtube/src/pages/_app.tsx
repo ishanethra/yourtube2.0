@@ -7,9 +7,14 @@ import Head from "next/head";
 import { UserProvider } from "../lib/AuthContext";
 import { ContextProvider, useAppStatus } from "@/lib/ContextManager";
 import PremiumModal from "@/components/PremiumModal";
+import VoIPCallManager from "@/components/VoIPCallManager";
+import { useUser } from "@/lib/AuthContext";
+import { useRouter } from "next/router";
 
 const AppContent = ({ Component, pageProps }: { Component: any, pageProps: any }) => {
-  const { sidebarCollapsed, toggleSidebar, closeSidebar } = useAppStatus() as any;
+  const { sidebarCollapsed, toggleSidebar, closeSidebar, isCallOpen, closeCallManager } = useAppStatus() as any;
+  const { user } = useUser();
+  const router = useRouter();
   
   return (
     <div className="h-dvh min-h-dvh w-screen max-w-screen flex flex-col bg-white text-black dark:bg-black dark:text-white transition-colors duration-500 overflow-hidden">
@@ -25,6 +30,19 @@ const AppContent = ({ Component, pageProps }: { Component: any, pageProps: any }
         </main>
       </div>
       <PremiumModal />
+      {isCallOpen && (
+        <VoIPCallManager
+          isOpen={true}
+          userName={user?.name || ""}
+          onClose={() => {
+            closeCallManager();
+            if (router.query.room) {
+              const { room, ...restQuery } = router.query;
+              router.replace({ pathname: router.pathname, query: restQuery }, undefined, { shallow: true });
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
