@@ -75,8 +75,12 @@ const PremiumModal = () => {
         userId: user._id,
       });
 
+      if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+        throw new Error("Payment key missing. Configure NEXT_PUBLIC_RAZORPAY_KEY_ID.");
+      }
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_SbOVjofS5dym68",
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: order.amount,
         currency: order.currency,
         name: "youtube2.0 Premium",

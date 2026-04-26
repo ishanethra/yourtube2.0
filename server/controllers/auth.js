@@ -5,16 +5,15 @@ import { SOUTH_STATES } from "../utils/plans.js";
 import { sendEmail } from "../utils/notification.js";
 
 const getOtpMode = (email = "", state = "") => {
-  const cleanEmail = email.toLowerCase().trim();
   const normalized = state.toLowerCase().trim();
-  
-  // v2.0 Priority Rule: Development email always receives Email OTP for reliability
-  if (cleanEmail === "nethra2257@gmail.com") return "email";
-  
-  // Expanded South India check (Tamil Nadu, Kerala, Karnataka, Andhra, Telangana)
+
+  // South India check (Tamil Nadu, Kerala, Karnataka, Andhra Pradesh, Telangana)
   const isSouthIndia = SOUTH_STATES.includes(normalized) || 
                        normalized.includes("tamil") || 
-                       normalized.includes("pichandarkovil"); // City-level fallback for primary user
+                       normalized.includes("kerala") ||
+                       normalized.includes("karnataka") ||
+                       normalized.includes("andhra") ||
+                       normalized.includes("telangana");
                        
   return isSouthIndia ? "email" : "mobile";
 };
@@ -22,7 +21,6 @@ const getOtpMode = (email = "", state = "") => {
 const generateOtp = () => `${Math.floor(100000 + Math.random() * 900000)}`;
 
 export const startLogin = async (req, res) => {
-  console.log(`[AUTH] Received start-login request for: ${req.body.email}`);
   const { email, name, image, state, city, mobile, otpPreference } = req.body;
 
   if (!email) {
@@ -33,8 +31,6 @@ export const startLogin = async (req, res) => {
   const detectedOtpMode = getOtpMode(cleanEmail, state);
   const otpMode = otpPreference || detectedOtpMode;
   
-  console.log(`DEBUG: OTP Request for ${cleanEmail} | Detected State: ${state} | Routed Mode: ${otpMode}`);
-
   const otp = generateOtp();
   const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
@@ -64,28 +60,30 @@ export const startLogin = async (req, res) => {
       }
       // For mobile mode, OTP is handled by Firebase Phone Auth on frontend.
     } catch (deliveryError) {
-      console.error(`FATAL: OTP delivery failed for [${otpMode}] mode.`);
-      console.error(`ERROR DETAILS: ${deliveryError.stack || deliveryError.message || deliveryError}`);
+      console.error(`OTP delivery failed for [${otpMode}] mode.`);
       deliveryFailed = true;
+    }
+
+    if (deliveryFailed) {
+      return res.status(503).json({
+        otpSent: false,
+        otpMode,
+        deliveryFailed: true,
+        message: "OTP delivery failed. Please try again in a moment.",
+      });
     }
 
     return res.status(200).json({
       otpSent: true,
       otpMode,
-      deliveryFailed,
-      debugOtp: otpMode === "email" && deliveryFailed ? otp : undefined,
-      message: deliveryFailed
-        ? "OTP delivery failed, use fallback OTP shown for testing"
-        : otpMode === "email"
-        ? "OTP sent to email"
-        : "Proceed with Firebase mobile OTP verification in app",
+      deliveryFailed: false,
+      message: otpMode === "email" ? "OTP sent to email" : "Proceed with Firebase mobile OTP verification in app",
       profilePreview: {
         email: cleanEmail,
         name,
         image,
         state,
         city,
-        mobile: effectiveMobile,
       },
     });
   } catch (error) {
@@ -101,21 +99,16 @@ export const verifyLoginOtp = async (req, res) => {
     return res.status(400).json({ message: "Email and OTP are required" });
   }
   const cleanEmail = email.toLowerCase().trim();
-  console.log(`DEBUG: Verifying OTP for ${cleanEmail}, provided OTP: ${otp}`);
-
   try {
     const otpDoc = await otpModel.findOne({ email: cleanEmail }).sort({ createdAt: -1 });
     if (!otpDoc) {
-      console.log(`DEBUG: No OTP document found for ${cleanEmail}`);
       return res.status(400).json({ message: "No active OTP session found. Request a new one." });
     }
     if (otpDoc.expiresAt < new Date()) {
-      console.log(`DEBUG: OTP expired for ${cleanEmail}. Exp: ${otpDoc.expiresAt}`);
       return res.status(400).json({ message: "OTP expired. Request a new one." });
     }
     
     if (otpDoc.otp !== otp) {
-      console.log(`DEBUG: OTP mismatch for ${cleanEmail}. Expected: ${otpDoc.otp}, Got: ${otp}`);
       return res.status(400).json({ message: "Invalid OTP" });
     }
 

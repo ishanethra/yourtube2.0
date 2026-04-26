@@ -72,11 +72,18 @@ export const startPaymentOtp = async (req, res) => {
       deliveryFailed = true;
     }
 
+    if (deliveryFailed) {
+      return res.status(503).json({
+        success: false,
+        deliveryFailed: true,
+        message: "OTP delivery failed. Please try again.",
+      });
+    }
+
     return res.status(200).json({
       success: true,
-      deliveryFailed,
-      debugOtp: deliveryFailed ? otp : undefined,
-      message: deliveryFailed ? "OTP delivery failed, use debug code" : "OTP sent to mobile",
+      deliveryFailed: false,
+      message: "OTP sent to mobile",
     });
   } catch (error) {
     console.error(error);

@@ -3,9 +3,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/router";
 import { Button } from "./ui/button";
 import { 
-  Phone, PhoneOff, Video, VideoOff, Mic, MicOff, 
+  PhoneOff, Video, VideoOff, Mic, MicOff, 
   Monitor, MonitorOff, Circle, Square, X, Copy, 
-  Users, RefreshCw, PhoneCall, Youtube, ExternalLink, MessageSquare
+  Users, Youtube, MessageSquare
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUser } from "@/lib/AuthContext";
@@ -35,6 +35,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [isSharing,    setIsSharing]    = useState(false);
   const [isRecording,  setIsRecording]  = useState(false);
   const [showSyncInput, setShowSyncInput] = useState(false);
+  const [showSharePicker, setShowSharePicker] = useState(false);
   const [syncUrl, setSyncUrl] = useState("");
   const [callDuration, setCallDuration] = useState(0);
 
@@ -66,13 +67,33 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     return () => { active = false; };
   }, [callState, remoteStreamRef.current, isOpen]);
 
+  const endCall = useCallback((silent = false) => {
+    stopDurationTimer();
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    pcRef.current?.close();
+    socketRef.current?.disconnect();
+    if (remoteStreamRef.current) {
+      remoteStreamRef.current.getTracks().forEach((t) => t.stop());
+    }
+    localStreamRef.current = null;
+    screenStreamRef.current = null;
+    remoteStreamRef.current = null;
+    pcRef.current = null;
+    socketRef.current = null;
+    setCallState("idle");
+    setCallDuration(0);
+    setIsSharing(false);
+    if (!silent) toast.info("Call ended");
+  }, []);
+
   useEffect(() => {
     if (isOpen && router.query.room && callState === "idle") {
       const rid = router.query.room as string;
       setJoinRoomId(rid);
       handleJoinRoom(rid);
     }
-  }, [isOpen, router.query.room]);
+  }, [isOpen, router.query.room, callState]);
 
   const connectWS = (room: string) => {
     if (socketRef.current) socketRef.current.disconnect();
@@ -81,7 +102,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("connect", () => {
       socket.emit("join-room", room);
-      setCallState("lobby");
+      setCallState("connected");
+      startDurationTimer();
     });
 
     socket.on("user-joined", () => {
@@ -110,8 +132,12 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     });
 
     socket.on("user-left", () => {
-      toast.error("Participant disconnected");
-      endCall();
+      toast.info("Participant disconnected");
+      if (remoteStreamRef.current) {
+        remoteStreamRef.current.getTracks().forEach((t) => t.stop());
+        remoteStreamRef.current = new MediaStream();
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStreamRef.current;
+      }
     });
 
     socket.on("video-sync", (data) => {
@@ -199,7 +225,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const copyMeetingLink = () => {
     if (!roomId) return;
-    const link = `${window.location.origin}/?room=${roomId}`;
+    const link = `${window.location.origin}/calls?room=${roomId}`;
     navigator.clipboard.writeText(link);
     toast.success("Meeting link copied to clipboard");
   };
@@ -221,17 +247,38 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     }
   };
 
-  const endCall = () => {
-    stopDurationTimer();
-    localStreamRef.current?.getTracks().forEach(t => t.stop());
-    screenStreamRef.current?.getTracks().forEach(t => t.stop());
-    pcRef.current?.close();
-    socketRef.current?.disconnect();
-    setCallState("idle");
-    setCallDuration(0);
+  const stopScreenShare = useCallback(() => {
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current = null;
+    if (localStreamRef.current) {
+      const camTrack = localStreamRef.current.getVideoTracks()[0];
+      pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(camTrack);
+    }
     setIsSharing(false);
-    toast.info("Call ended");
-  };
+    toast.info("Screen sharing stopped");
+  }, []);
+
+  const startScreenShare = useCallback(async (preferCurrentTab: boolean) => {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          frameRate: 30,
+        } as MediaTrackConstraints,
+        audio: true,
+        preferCurrentTab,
+        selfBrowserSurface: "include",
+      } as DisplayMediaStreamOptions);
+      screenStreamRef.current = stream;
+      const screenTrack = stream.getVideoTracks()[0];
+      pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(screenTrack);
+      setIsSharing(true);
+      setShowSharePicker(false);
+      screenTrack.onended = () => stopScreenShare();
+      toast.success("Screen share started");
+    } catch {
+      toast.error("Screen share cancelled or denied");
+    }
+  }, [stopScreenShare]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -255,24 +302,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const toggleScreenShare = async () => {
     if (isSharing) {
-      screenStreamRef.current?.getTracks().forEach(t => t.stop());
-      screenStreamRef.current = null;
-      if (localStreamRef.current) {
-        const camTrack = localStreamRef.current.getVideoTracks()[0];
-        pcRef.current?.getSenders().find(s => s.track?.kind === "video")?.replaceTrack(camTrack);
-      }
-      setIsSharing(false);
+      stopScreenShare();
     } else {
-      try {
-        const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-        screenStreamRef.current = stream;
-        const screenTrack = stream.getVideoTracks()[0];
-        pcRef.current?.getSenders().find(s => s.track?.kind === "video")?.replaceTrack(screenTrack);
-        setIsSharing(true);
-        screenTrack.onended = () => toggleScreenShare();
-      } catch (err: any) {
-        toast.error("Screen share denied");
-      }
+      setShowSharePicker(true);
     }
   };
 
@@ -335,9 +367,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   // Cleanup everything on unmount
   useEffect(() => {
     return () => {
-      endCall();
+      endCall(true);
     };
-  }, []);
+  }, [endCall]);
 
   if (!isOpen) return null;
 
@@ -410,9 +442,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                   <div className="w-full max-w-md space-y-8">
                     <div className="space-y-4">
                       <h1 className="text-4xl font-normal text-white">
-                        {callState === "idle" ? "Start a meeting" : "Ready to join?"}
+                        {callState === "idle" ? "Start a meeting" : "Connecting..."}
                       </h1>
-                      <p className="text-zinc-400 text-lg">No one else is here yet.</p>
+                      <p className="text-zinc-400 text-lg">Share your room code and invite your friend.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -442,15 +474,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                       ) : (
                         <div className="flex items-center gap-4">
                           <Button 
-                            onClick={() => setCallState(callState === "lobby" ? "connected" : "calling")}
-                            className="h-12 px-10 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-base shadow-xl"
-                          >
-                            Join now
-                          </Button>
-                          <Button 
                             onClick={copyMeetingLink}
                             variant="ghost"
-                            className="h-12 px-6 rounded-full text-blue-500 hover:bg-blue-500/5 font-medium flex gap-2"
+                            className="h-12 px-6 rounded-full text-blue-500 hover:bg-blue-500/5 font-medium flex gap-2 border border-blue-500/30"
                           >
                             <Copy className="w-4 h-4" /> Share Link
                           </Button>
@@ -537,7 +563,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
               >
                 {isSharing ? <MonitorOff className="w-5 h-5" /> : <Monitor className="w-5 h-5" />}
                 <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-[#3c4043] text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  Present now
+                  Share screen
                 </span>
               </button>
 
@@ -564,7 +590,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
               <div className="w-[1px] h-6 bg-white/10 mx-1" />
 
               <button 
-                onClick={endCall} 
+                onClick={() => endCall()} 
                 className="w-16 md:w-20 h-10 md:h-12 rounded-full bg-[#ea4335] hover:bg-[#d93025] flex items-center justify-center transition-all shadow-lg active:scale-95"
               >
                 <PhoneOff className="w-6 h-6 text-white" />
@@ -634,6 +660,33 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
             <p className="text-[9px] text-zinc-500 mt-4 leading-relaxed italic">
               * This will automatically play the selected video for all participants in the meeting room.
             </p>
+          </div>
+        )}
+
+        {/* Screen Share Picker Overlay */}
+        {showSharePicker && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 w-full max-w-lg bg-[#202124] border border-white/10 rounded-2xl p-6 shadow-2xl z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+            <h3 className="text-white text-base font-bold mb-4">Choose What To Share</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                onClick={() => startScreenShare(true)}
+                className="rounded-xl border border-blue-500/40 bg-blue-500/10 text-blue-300 px-4 py-3 text-sm font-semibold hover:bg-blue-500/20 transition-all"
+              >
+                Share This Website Tab
+              </button>
+              <button
+                onClick={() => startScreenShare(false)}
+                className="rounded-xl border border-white/20 bg-white/5 text-white px-4 py-3 text-sm font-semibold hover:bg-white/10 transition-all"
+              >
+                Share Any Screen/Tab
+              </button>
+            </div>
+            <button
+              onClick={() => setShowSharePicker(false)}
+              className="mt-4 text-xs text-zinc-400 hover:text-zinc-200"
+            >
+              Cancel
+            </button>
           </div>
         )}
 

@@ -213,6 +213,11 @@ export const UserProvider = ({ children }) => {
     }
 
     const otpMode = startRes.data.otpMode;
+    if (startRes.data.deliveryFailed || !startRes.data.otpSent) {
+      setIsAuthLoading(false);
+      toast.error(startRes.data.message || "OTP delivery failed. Please try again.");
+      return;
+    }
     if (otpMode === "mobile") {
       const mobile = await requestAuthInput({
         title: "Mobile Verification",
@@ -267,17 +272,8 @@ export const UserProvider = ({ children }) => {
       return;
     }
 
-    if (startRes.data.deliveryFailed && startRes.data.debugOtp) {
-      toast.info(`OTP delivery failed. Using test OTP: ${startRes.data.debugOtp}`, { duration: 10000 });
-    } else if (otpMode === "email") {
+    if (otpMode === "email") {
       toast.success("OTP sent to your email! Please check your Inbox and Spam folder.", { duration: 8000 });
-    }
-    
-    // Developer Fallback: Only log for the primary owner to ensure you are never blocked
-    if (firebaseuser.email?.toLowerCase().trim() === "nethra2257@gmail.com") {
-      debugLog("-----------------------------------------");
-      debugLog("youtube2.0 - SECURITY OTP:", startRes.data.debugOtp || "Sent via Service");
-      debugLog("-----------------------------------------");
     }
 
     const otp = await requestAuthInput({

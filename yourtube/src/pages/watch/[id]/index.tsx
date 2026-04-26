@@ -14,7 +14,7 @@ const WatchVideoPage = () => {
   const { user } = useUser();
   const commentRef = useRef<HTMLDivElement>(null);
   const [currentVideo, setCurrentVideo] = useState<any>(null);
-  const [relatedVideos, setRelatedVideos] = useState<any>(null);
+  const [relatedVideos, setRelatedVideos] = useState<any[]>([]);
   const [loading, setloading] = useState(true);
 
   useEffect(() => {
@@ -27,19 +27,19 @@ const WatchVideoPage = () => {
 
         if (selectedVideo) {
           setCurrentVideo(selectedVideo);
-          setRelatedVideos(allVideos);
+          setRelatedVideos(allVideos.slice(0, 40));
         } else {
           const sampleSelected = sampleYoutubeVideos.find((vid) => vid._id === id);
           if (sampleSelected) {
             setCurrentVideo(sampleSelected);
-            setRelatedVideos(sampleYoutubeVideos);
+            setRelatedVideos(sampleYoutubeVideos.slice(0, 40));
           }
         }
       } catch (error) {
         const sampleSelected = sampleYoutubeVideos.find((vid) => vid._id === id);
         if (sampleSelected) {
           setCurrentVideo(sampleSelected);
-          setRelatedVideos(sampleYoutubeVideos);
+          setRelatedVideos(sampleYoutubeVideos.slice(0, 40));
         }
       } finally {
         setloading(false);
@@ -50,21 +50,11 @@ const WatchVideoPage = () => {
 
   useEffect(() => {
     const logHistory = async () => {
-      if (!user?._id || !id || !currentVideo) {
-        console.warn("DEBUG: History logging skipped - missing context:", { hasUser: !!user?._id, hasId: !!id, hasVideo: !!currentVideo });
-        return;
-      }
+      if (!user?._id || !id || !currentVideo) return;
 
       try {
         await axiosInstance.post(`/history/handlehistory/${id}`, { userId: user._id });
-        console.log("DEBUG: History successfully synchronized for video:", id);
-      } catch (error: any) {
-        if (error.response?.status === 404) {
-          console.error("DEBUG: History service unreachable (404). Check backend route configuration.");
-        } else {
-          console.error("DEBUG: History log failure:", error.message);
-        }
-      }
+      } catch (_) {}
     };
     
     if (currentVideo) {
@@ -81,7 +71,7 @@ const WatchVideoPage = () => {
   }
 
   const handleNextVideo = () => {
-    if (!relatedVideos || !Array.isArray(relatedVideos)) return;
+    if (!Array.isArray(relatedVideos) || relatedVideos.length === 0) return;
     const currentIndex = relatedVideos.findIndex((entry: any) => entry._id === currentVideo._id);
     const next = relatedVideos[(currentIndex + 1) % relatedVideos.length];
     if (next?._id) {

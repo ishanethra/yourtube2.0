@@ -57,6 +57,7 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   const [countdown, setCountdown] = useState(5);
   const [isPaused, setIsPaused] = useState(false);
   const [playerLoaded, setPlayerLoaded] = useState(false);
+  const [playerUnsupported, setPlayerUnsupported] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPseudoFullscreen, setIsPseudoFullscreen] = useState(false);
   const router = useRouter();
@@ -131,6 +132,7 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
   useEffect(() => {
     if (!isYouTube || !ytVideoId) {
       setPlayerLoaded(false);
+      setPlayerUnsupported(false);
       return;
     }
     const videoId = ytVideoId;
@@ -165,10 +167,26 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
             origin: typeof window !== "undefined" ? window.location.origin : undefined,
           },
           events: {
-            onReady: () => setPlayerLoaded(true),
+            onReady: () => {
+              setPlayerLoaded(true);
+              setPlayerUnsupported(false);
+            },
             onStateChange: (event: any) => {
               if (event.data === window.YT.PlayerState.PAUSED) setIsPaused(true);
               if (event.data === window.YT.PlayerState.PLAYING) setIsPaused(false);
+            },
+            onError: (event: any) => {
+              const code = Number(event?.data);
+              const unsupportedCodes = [100, 101, 150];
+              if (!unsupportedCodes.includes(code)) return;
+
+              setPlayerUnsupported(true);
+              toast.error("This video can't be embedded. Skipping to next supported video.");
+
+              const currentIndex = allVideos.findIndex((v) => v._id === video._id);
+              if (currentIndex !== -1 && allVideos[currentIndex + 1]) {
+                setTimeout(() => router.push(`/watch/${allVideos[currentIndex + 1]._id}`), 700);
+              }
             },
           },
         });
@@ -205,7 +223,7 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
         playerRef.current = null;
       }
     };
-  }, [video?.filepath, video?._id, isYouTube]);
+  }, [allVideos, router, video?._id, ytVideoId, isYouTube]);
 
   // Gesture feedback
   const [gestureHint,     setGestureHint]     = useState<{ side: string; count: number } | null>(null);
@@ -488,6 +506,14 @@ export default function GestureVideoPlayer({ video, allVideos = [], onOpenCommen
             {!playerLoaded && (
               <div className="absolute inset-0 bg-zinc-900 flex items-center justify-center">
                 <Youtube className="w-12 h-12 text-red-600 animate-pulse" />
+              </div>
+            )}
+            {playerUnsupported && (
+              <div className="absolute inset-0 bg-black/85 flex items-center justify-center z-40">
+                <div className="text-center px-6">
+                  <p className="text-white font-bold text-lg">Unsupported embed removed</p>
+                  <p className="text-zinc-300 text-sm mt-1">Loading the next video...</p>
+                </div>
               </div>
             )}
           </>

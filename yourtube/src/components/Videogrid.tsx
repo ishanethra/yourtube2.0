@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Videocard from "./videocard";
 import axiosInstance from "@/lib/axiosinstance";
 import { sampleYoutubeVideos } from "@/lib/sampleVideos";
@@ -30,7 +30,7 @@ const Videogrid = ({ activeCategory = "All" }: { activeCategory?: string }) => {
         const res = await axiosInstance.get("/video/getall");
         setvideo(res.data);
       } catch (error) {
-        console.log(error);
+        console.error("Failed to load feed videos", error);
       } finally {
         setloading(false);
       }
@@ -52,11 +52,25 @@ const Videogrid = ({ activeCategory = "All" }: { activeCategory?: string }) => {
     (video: any) => !titlesToRemove.includes(video?.videotitle)
   );
 
-  const allFeed = [...filteredDynamicFeed, ...sampleYoutubeVideos];
-  const feed =
-    activeCategory === "All"
+  const hasValidSource = (video: any) => {
+    if (!video) return false;
+    const yt = String(video.youtubeId || "").trim();
+    const validYouTube = yt ? /^[a-zA-Z0-9_-]{11}$/.test(yt) : false;
+    const hasFilePath = Boolean(String(video.filepath || "").trim());
+    return validYouTube || hasFilePath;
+  };
+
+  const allFeed = useMemo(
+    () => [...filteredDynamicFeed, ...sampleYoutubeVideos].filter(hasValidSource),
+    [filteredDynamicFeed]
+  );
+
+  const feed = useMemo(
+    () => activeCategory === "All"
       ? allFeed
-      : allFeed.filter((video: any) => video?.category === activeCategory);
+      : allFeed.filter((video: any) => video?.category === activeCategory),
+    [activeCategory, allFeed]
+  );
 
   const { user } = useUser();
   const showAds = !user || (user.plan || "FREE").toUpperCase() === "FREE";

@@ -17,9 +17,10 @@ const ChannelPage = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
     const load = async () => {
       if (!id || typeof id !== "string") return;
-      setLoading(true);
+      if (active) setLoading(true);
       try {
         const [channelRes, allVideosRes] = await Promise.all([
           axiosInstance.get(`/user/${id}`),
@@ -34,6 +35,7 @@ const ChannelPage = () => {
           return uploaderId && String(uploaderId) === String(id);
         });
 
+        if (!active) return;
         setChannel(channelData);
         setVideos(channelVideos);
       } catch (error) {
@@ -51,6 +53,7 @@ const ChannelPage = () => {
             sampleChannelVideos[0]?.uploader?.name ||
             String(id);
           const sampleImage = sampleChannelVideos[0]?.uploader?.image || "";
+          if (!active) return;
           setChannel({
             _id: String(id),
             channelname: sampleName,
@@ -61,15 +64,19 @@ const ChannelPage = () => {
           setVideos(sampleChannelVideos);
         } else {
           console.error("Error fetching channel data:", error);
+          if (!active) return;
           setChannel(null);
           setVideos([]);
         }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     load();
+    return () => {
+      active = false;
+    };
   }, [id]);
 
   const isOwnChannel = useMemo(() => {
@@ -80,7 +87,19 @@ const ChannelPage = () => {
   if (loading) {
     return (
       <div className="flex-1 min-h-screen bg-white dark:bg-black">
-        <div className="px-4 py-10 text-zinc-500">Loading channel...</div>
+        <div className="max-w-full mx-auto px-4 py-6 space-y-6 animate-pulse">
+          <div className="h-40 rounded-2xl bg-zinc-100 dark:bg-zinc-900" />
+          <div className="h-10 rounded-xl bg-zinc-100 dark:bg-zinc-900" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="aspect-video rounded-xl bg-zinc-100 dark:bg-zinc-900" />
+                <div className="h-4 rounded bg-zinc-100 dark:bg-zinc-900" />
+                <div className="h-3 w-2/3 rounded bg-zinc-100 dark:bg-zinc-900" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
