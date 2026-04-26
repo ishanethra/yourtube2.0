@@ -299,12 +299,17 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const id = Math.random().toString(36).slice(2, 6).toUpperCase() + "-" + 
                  Math.random().toString(36).slice(2, 6).toUpperCase();
       setRoomId(id);
+      
+      // Sync room ID to URL so reloading or sharing works out-of-the-box
+      router.replace({ pathname: "/calls", query: { ...router.query, room: id } }, undefined, { shallow: true });
+      
       // Enter meeting room immediately and show waiting state.
       setCallState("connected");
       startDurationTimer();
       connectWS(id);
       toast.success("Meeting room prepared!");
-    } catch { 
+    } catch (e) { 
+      console.error(e);
       setCallState("idle");
     }
   };
@@ -326,11 +331,18 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         await startLocalMedia();
       }
       setRoomId(idToJoin);
+      
+      // Sync room ID to URL so reloading or sharing works out-of-the-box
+      if (router.query.room !== idToJoin) {
+        router.replace({ pathname: "/calls", query: { ...router.query, room: idToJoin } }, undefined, { shallow: true });
+      }
+
       // Enter meeting view immediately while signaling connects.
       setCallState("connected");
       startDurationTimer();
       connectWS(idToJoin);
-    } catch { 
+    } catch (e) { 
+      console.error(e);
       setCallState("idle");
     }
   };
@@ -887,13 +899,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                   remotePresent
                     ? remoteIsSharing
                       ? "relative"
-                      : "grid grid-cols-1 md:grid-cols-2"
-                    : "grid grid-cols-1"
-                } gap-4 max-w-7xl mx-auto w-full`}
+                      : "flex flex-col md:flex-row"
+                    : "flex flex-col items-center justify-center p-2 lg:p-8"
+                } gap-4 max-w-7xl mx-auto w-full h-full min-h-0`}
               >
                 {/* Remote Participant */}
                 {remotePresent && (
-                <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${remoteIsSharing ? "w-full h-full" : "aspect-video"}`}>
+                <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${
+                  remoteIsSharing ? "w-full h-full absolute inset-0" : "flex-1 min-h-0 w-full"
+                }`}>
                   {/* Remote Video Stream - In a real Meet app, this would show the user's avatar if video is off */}
                   <video
                     ref={remoteVideoRef}
@@ -926,8 +940,10 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                 {/* Local Participant */}
                 <div className={`relative bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl border border-white/5 ${
                   remotePresent && remoteIsSharing
-                    ? "absolute right-4 bottom-4 w-56 md:w-72 aspect-video z-20"
-                    : "aspect-video"
+                    ? "absolute right-4 bottom-4 w-32 md:w-64 aspect-[3/4] md:aspect-video z-20"
+                    : remotePresent 
+                      ? "flex-1 min-h-0 w-full" 
+                      : "w-full max-w-5xl flex-1 min-h-0"
                 }`}>
                   {isVideoOff ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#202124]">
