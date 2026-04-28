@@ -552,18 +552,22 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const stream = localStreamRef.current;
       if (!stream) return;
 
-      const currentTrack = stream.getVideoTracks()[0];
-
       if (!isVideoOff) {
-        // Turn OFF: stop and remove camera track so re-enable gets a fresh device track.
-        if (currentTrack) {
-          currentTrack.stop();
-          stream.removeTrack(currentTrack);
-        }
+        // Turn OFF completely: stop/remove all camera tracks so hardware is released in background too.
+        stream.getVideoTracks().forEach((track) => {
+          track.stop();
+          stream.removeTrack(track);
+        });
+
         if (!isSharing) {
           const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
           if (sender) await sender.replaceTrack(null);
         }
+
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = null;
+        }
+
         setIsVideoOff(true);
         if (socketRef.current?.connected && roomId) {
           socketRef.current.emit("camera-state", { roomId, isVideoOn: false });
@@ -575,6 +579,12 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       const camStream = await navigator.mediaDevices.getUserMedia({ video: true });
       const freshTrack = camStream.getVideoTracks()[0];
       if (!freshTrack) return;
+
+      // Cleanup any stale tracks before adding the new live track.
+      stream.getVideoTracks().forEach((track) => {
+        track.stop();
+        stream.removeTrack(track);
+      });
       stream.addTrack(freshTrack);
 
       if (localVideoRef.current) {
