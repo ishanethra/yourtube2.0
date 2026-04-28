@@ -688,6 +688,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         audio: true,
         preferCurrentTab: surfaceType === "browser",
         selfBrowserSurface: "include",
+        surfaceSwitching: "include",
+        systemAudio: "exclude",
       } as DisplayMediaStreamOptions);
       screenStreamRef.current = stream;
       if (localScreenVideoRef.current) {
@@ -733,7 +735,11 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       }
       if (surfaceType === "browser") {
         setIsMinimized(true);
-        toast.success("Call minimized. You can navigate this website while sharing.");
+        // Meet-like behavior for in-app tab share: show app content, not call UI.
+        if (router.pathname === "/calls" || router.pathname === "/auth") {
+          router.replace("/", undefined, { shallow: true });
+        }
+        toast.success("Call minimized. Open videos in this tab while sharing.");
       }
       screenTrack.onended = () => stopScreenShare();
       toast.success("Screen share started");
