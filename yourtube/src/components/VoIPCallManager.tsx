@@ -197,7 +197,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     socketRoomRef.current = room;
 
     const socket = io(resolveWsUrl(), {
-      transports: ["websocket", "polling"],
+      transports: ["polling", "websocket"],
       upgrade: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
@@ -389,16 +389,34 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         refreshLocalPreviewState();
         return;
       }
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      let stream: MediaStream | null = null;
+      let audioUnavailable = false;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      } catch (err: any) {
+        // If mic is busy/blocked, still allow Meet-style join with video-only.
+        const name = String(err?.name || "");
+        if (name === "NotReadableError" || name === "NotFoundError" || name === "NotAllowedError") {
+          audioUnavailable = true;
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } else {
+          throw err;
+        }
+      }
+      if (!stream) throw new Error("Unable to initialize local media");
       localStreamRef.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       if (localVideoRef.current) {
         localVideoRef.current.play().catch(() => null);
       }
+      if (audioUnavailable) {
+        setIsMuted(true);
+        toast.info("Microphone unavailable. Joined with camera only.");
+      }
       refreshLocalPreviewState();
     } catch (err) {
       console.error("Local media error:", err);
-      toast.error("Could not access camera/mic");
+      toast.error("Could not access camera. Check camera permissions and close other apps using camera/mic.");
       setHasLocalPreview(false);
     }
   };
