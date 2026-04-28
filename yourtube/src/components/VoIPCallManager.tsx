@@ -725,11 +725,13 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   if (!isOpen) return null;
 
-  if (isMinimized && callState === "connected") {
+  const isMeetingActive = callState === "preparing" || callState === "calling" || callState === "connected";
+
+  if (isMinimized && isMeetingActive) {
     return (
       <div className="fixed bottom-4 right-4 z-[120] w-80 rounded-2xl border border-white/15 bg-[#202124]/95 backdrop-blur-md shadow-2xl text-white p-3">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold tracking-wide truncate">{roomId}</p>
+          <p className="text-xs font-semibold tracking-wide truncate">{roomId || "Meeting"}</p>
           <button
             onClick={() => setIsMinimized(false)}
             className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center"
@@ -739,11 +741,16 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           </button>
         </div>
         <p className="text-[11px] text-zinc-300 mb-3">
-          {isSharing ? "You are sharing this tab." : "Call is running in background."}
+          {callState !== "connected"
+            ? "Connecting in background..."
+            : isSharing
+            ? "You are sharing this tab."
+            : "Call is running in background."}
         </p>
         <div className="grid grid-cols-6 gap-2 mb-3">
           <button
             onClick={toggleMute}
+            disabled={callState !== "connected"}
             className={`h-9 rounded-lg flex items-center justify-center ${isMuted ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
             title={isMuted ? "Unmute" : "Mute"}
           >
@@ -751,6 +758,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           </button>
           <button
             onClick={toggleVideo}
+            disabled={callState !== "connected"}
             className={`h-9 rounded-lg flex items-center justify-center ${isVideoOff ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
             title={isVideoOff ? "Start video" : "Stop video"}
           >
@@ -758,6 +766,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           </button>
           <button
             onClick={toggleScreenShare}
+            disabled={callState !== "connected"}
             className={`h-9 rounded-lg flex items-center justify-center ${isSharing ? "bg-blue-600/90" : "bg-white/10 hover:bg-white/20"}`}
             title={isSharing ? "Stop sharing" : "Share screen"}
           >
@@ -765,6 +774,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           </button>
           <button
             onClick={toggleRecording}
+            disabled={callState !== "connected"}
             className={`h-9 rounded-lg flex items-center justify-center ${isRecording ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
             title={isRecording ? "Stop recording" : "Start recording"}
           >
@@ -779,6 +789,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           </button>
           <button
             onClick={() => setShowSyncInput((v) => !v)}
+            disabled={callState !== "connected"}
             className={`h-9 rounded-lg flex items-center justify-center ${showSyncInput ? "bg-red-600/90" : "bg-white/10 hover:bg-white/20"}`}
             title="Stream YouTube"
           >
@@ -1139,7 +1150,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
           </div>
         )}
 
-        {callState === "connected" && (
+        {isMeetingActive && (
           <div className="absolute bottom-24 right-4 flex lg:hidden items-center gap-2 z-30">
             <button
               onClick={() => setIsMinimized(true)}
