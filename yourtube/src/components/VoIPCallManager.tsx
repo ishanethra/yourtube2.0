@@ -149,8 +149,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     socketRoomRef.current = room;
 
     const socket = io(resolveWsUrl(), {
-      transports: ["polling", "websocket"],
-      upgrade: true,
+      transports: ["websocket"],
+      upgrade: false,
       reconnection: true,
       reconnectionAttempts: Infinity,
       timeout: 20000,
