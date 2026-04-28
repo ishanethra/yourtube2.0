@@ -23,10 +23,14 @@ const io = new Server(server, {
     origin: "*",
     methods: ["GET", "POST"],
   },
-  transports: ["websocket"],
+  transports: ["websocket", "polling"],
   pingInterval: 25000,
   pingTimeout: 60000,
   allowEIO3: true,
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 120000,
+    skipMiddlewares: true,
+  },
 });
 const roomParticipants = new Map();
 
@@ -124,6 +128,11 @@ io.on("connection", (socket) => {
       emitRoomUsers(roomId);
     }
     socket.to(roomId).emit("mute-state", { isMuted: !!isMuted });
+  });
+
+  socket.on("request-offer", ({ roomId }) => {
+    if (!roomId) return;
+    socket.to(roomId).emit("request-offer");
   });
 
   socket.on("leave-room", (roomId) => {

@@ -196,10 +196,13 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     socketRoomRef.current = room;
 
     const socket = io(resolveWsUrl(), {
-      transports: ["websocket"],
-      upgrade: false,
+      transports: ["websocket", "polling"],
+      upgrade: true,
       reconnection: true,
       reconnectionAttempts: Infinity,
+      reconnectionDelay: 500,
+      reconnectionDelayMax: 4000,
+      randomizationFactor: 0.5,
       timeout: 20000,
       forceNew: false,
       withCredentials: false,
@@ -218,6 +221,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         },
       });
       socket.emit("camera-state", { roomId: room, isVideoOn: !isVideoOff });
+      socket.emit("request-offer", { roomId: room });
       setCallState("connected");
       startDurationTimer();
     });
@@ -230,6 +234,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("disconnect", () => {
       socketConnectInFlightRef.current = false;
+      setCallState("calling");
+      toast.info("Connection unstable. Reconnecting...");
     });
 
     socket.on("user-joined", () => {
@@ -291,6 +297,16 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("room-users", (users: RoomUser[]) => {
       setRoomUsers(Array.isArray(users) ? users : []);
+    });
+
+    socket.on("request-offer", async () => {
+      try {
+        if (roomIdRef.current) {
+          await makeOffer(roomIdRef.current);
+        }
+      } catch {
+        // ignore transient renegotiation errors
+      }
     });
   };
 
