@@ -28,6 +28,12 @@ const io = new Server(server, {
   pingTimeout: 60000,
   allowEIO3: true,
 });
+const roomParticipants = new Map();
+
+const emitRoomUsers = (roomId) => {
+  const users = Array.from(roomParticipants.get(roomId)?.values() || []);
+  io.to(roomId).emit("room-users", users);
+};
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "30mb", extended: true }));
@@ -61,9 +67,21 @@ app.use((err, req, res, next) => {
 });
 
 io.on("connection", (socket) => {
-  socket.on("join-room", (roomId) => {
+  socket.on("join-room", ({ roomId, user }) => {
+    if (!roomId) return;
+    const safeUser = {
+      socketId: socket.id,
+      name: String(user?.name || "Participant"),
+      image: String(user?.image || ""),
+      isVideoOn: user?.isVideoOn !== false,
+      isMuted: !!user?.isMuted,
+    };
+    if (!roomParticipants.has(roomId)) roomParticipants.set(roomId, new Map());
+    roomParticipants.get(roomId).set(socket.id, safeUser);
+
     socket.join(roomId);
     socket.to(roomId).emit("user-joined", socket.id);
+    emitRoomUsers(roomId);
   });
 
   socket.on("webrtc-offer", ({ roomId, offer }) => {
@@ -87,12 +105,44 @@ io.on("connection", (socket) => {
   });
 
   socket.on("camera-state", ({ roomId, isVideoOn }) => {
+    if (roomParticipants.has(roomId) && roomParticipants.get(roomId).has(socket.id)) {
+      const user = roomParticipants.get(roomId).get(socket.id);
+      user.isVideoOn = !!isVideoOn;
+      roomParticipants.get(roomId).set(socket.id, user);
+      emitRoomUsers(roomId);
+    }
     socket.to(roomId).emit("camera-state", { isVideoOn: !!isVideoOn });
+  });
+
+  socket.on("mute-state", ({ roomId, isMuted }) => {
+    if (roomParticipants.has(roomId) && roomParticipants.get(roomId).has(socket.id)) {
+      const user = roomParticipants.get(roomId).get(socket.id);
+      user.isMuted = !!isMuted;
+      roomParticipants.get(roomId).set(socket.id, user);
+      emitRoomUsers(roomId);
+    }
+    socket.to(roomId).emit("mute-state", { isMuted: !!isMuted });
   });
 
   socket.on("leave-room", (roomId) => {
     socket.leave(roomId);
+    if (roomParticipants.has(roomId)) {
+      roomParticipants.get(roomId).delete(socket.id);
+      if (roomParticipants.get(roomId).size === 0) roomParticipants.delete(roomId);
+      else emitRoomUsers(roomId);
+    }
     socket.to(roomId).emit("user-left", socket.id);
+  });
+
+  socket.on("disconnect", () => {
+    for (const [roomId, usersMap] of roomParticipants.entries()) {
+      if (usersMap.has(socket.id)) {
+        usersMap.delete(socket.id);
+        if (usersMap.size === 0) roomParticipants.delete(roomId);
+        else emitRoomUsers(roomId);
+        socket.to(roomId).emit("user-left", socket.id);
+      }
+    }
   });
 });
 

@@ -26,6 +26,14 @@ interface VoIPCallManagerProps {
   userName: string;
 }
 
+interface RoomUser {
+  socketId: string;
+  name: string;
+  image: string;
+  isVideoOn: boolean;
+  isMuted: boolean;
+}
+
 export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProps) {
   const { user, handlegooglesignin } = useUser();
   const [roomId,       setRoomId]       = useState("");
@@ -46,6 +54,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [callDuration, setCallDuration] = useState(0);
   const [micLevel, setMicLevel] = useState(0);
   const [hasLocalPreview, setHasLocalPreview] = useState(false);
+  const [roomUsers, setRoomUsers] = useState<RoomUser[]>([]);
 
   const localVideoRef  = useRef<HTMLVideoElement>(null);
   const localScreenVideoRef = useRef<HTMLVideoElement>(null);
@@ -137,6 +146,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     setIsMinimized(false);
     setMicLevel(0);
     setHasLocalPreview(false);
+    setRoomUsers([]);
     if (!silent) {
       toast.info("Call ended");
       onClose();
@@ -178,7 +188,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("connect", () => {
       socketConnectInFlightRef.current = false;
-      socket.emit("join-room", room);
+      socket.emit("join-room", {
+        roomId: room,
+        user: {
+          name: user?.name || "Participant",
+          image: user?.image || "",
+          isVideoOn: !isVideoOff,
+          isMuted,
+        },
+      });
       socket.emit("camera-state", { roomId: room, isVideoOn: !isVideoOff });
       setCallState("connected");
       startDurationTimer();
@@ -245,6 +263,14 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     socket.on("camera-state", ({ isVideoOn }) => {
       setRemoteVideoOff(!Boolean(isVideoOn));
+    });
+
+    socket.on("mute-state", ({ isMuted: remoteMuted }) => {
+      if (remoteMuted) toast.info("Participant muted");
+    });
+
+    socket.on("room-users", (users: RoomUser[]) => {
+      setRoomUsers(Array.isArray(users) ? users : []);
     });
   };
 
@@ -589,6 +615,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       if (audioTrack) {
         audioTrack.enabled = !audioTrack.enabled;
         setIsMuted(!audioTrack.enabled);
+        if (socketRef.current?.connected && roomIdRef.current) {
+          socketRef.current.emit("mute-state", { roomId: roomIdRef.current, isMuted: !audioTrack.enabled });
+        }
       }
     }
   };
@@ -619,9 +648,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
         setIsVideoOff(true);
         setHasLocalPreview(false);
-        if (socketRef.current?.connected && roomId) {
-          socketRef.current.emit("camera-state", { roomId, isVideoOn: false });
-        }
+      if (socketRef.current?.connected && roomId) {
+        socketRef.current.emit("camera-state", { roomId, isVideoOn: false });
+      }
         return;
       }
 
@@ -726,6 +755,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     }
   };
   const formatDuration = (s: number) => `${Math.floor(s/60).toString().padStart(2,"0")}:${(s%60).toString().padStart(2,"0")}`;
+  const participantCount = Math.max(roomUsers.length, remotePresent ? 2 : 1);
+  const remoteUser = roomUsers.find((u) => u.socketId !== socketRef.current?.id);
 
   // Cleanup everything on unmount
   useEffect(() => {
@@ -848,6 +879,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
             <h1 className="text-lg font-medium text-white/90">Meeting Session</h1>
             <div className="w-[1px] h-4 bg-white/20 mx-2" />
             <span className="text-sm text-white/60 font-mono tracking-wider">{roomId}</span>
+            <div className="w-[1px] h-4 bg-white/20 mx-2" />
+            <span className="text-sm text-white/60">{participantCount} participant{participantCount > 1 ? "s" : ""}</span>
           </div>
         )}
 
@@ -1016,21 +1049,25 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                   />
                   {remoteVideoOff && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#202124]">
-                      <div className="w-20 h-20 rounded-full bg-zinc-600 flex items-center justify-center text-2xl font-bold uppercase">
-                        P
-                      </div>
+                      {remoteUser?.image ? (
+                        <img src={remoteUser.image} alt={remoteUser?.name || "Participant"} className="w-20 h-20 rounded-full object-cover border border-white/20" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-zinc-600 flex items-center justify-center text-2xl font-bold uppercase">
+                          {remoteUser?.name?.[0] || "P"}
+                        </div>
+                      )}
                       <p className="mt-3 text-sm text-zinc-300">
-                        Participant camera is off
+                        {(remoteUser?.name || "Participant")} camera is off
                       </p>
                     </div>
                   )}
                   <div className="absolute bottom-4 left-4 flex items-center gap-3">
                     <span className="text-white text-xs font-medium bg-black/40 px-3 py-1.5 rounded-md backdrop-blur-md">
                       {remoteIsSharing
-                        ? "Participant • Sharing Screen"
+                        ? `${remoteUser?.name || "Participant"} • Sharing Screen`
                         : remoteVideoOff
-                        ? "Participant • Camera Off"
-                        : "Participant • Connected"}
+                        ? `${remoteUser?.name || "Participant"} • Camera Off`
+                        : `${remoteUser?.name || "Participant"} • Connected`}
                     </span>
                   </div>
                 </div>
