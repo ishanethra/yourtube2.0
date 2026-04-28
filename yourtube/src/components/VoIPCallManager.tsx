@@ -95,6 +95,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const socketRoomRef = useRef("");
   const socketConnectInFlightRef = useRef(false);
   const sharedVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const sharedAudioTrackRef = useRef<MediaStreamTrack | null>(null);
   const lastConnectionToastAtRef = useRef(0);
   const localAvatar = String(user?.image || "").trim();
 
@@ -376,6 +377,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     return tx?.sender ?? null;
   };
 
+  const getAudioSender = () => {
+    const pc = pcRef.current;
+    if (!pc) return null;
+    const senderWithTrack = pc.getSenders().find((s) => s.track?.kind === "audio");
+    if (senderWithTrack) return senderWithTrack;
+    const tx = pc.getTransceivers().find((t) => t.receiver?.track?.kind === "audio");
+    return tx?.sender ?? null;
+  };
+
   const makeOffer = async (room: string) => {
     const pc = createPeerConnection(room);
     const offer = await pc.createOffer();
@@ -522,6 +532,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current = null;
     sharedVideoTrackRef.current = null;
+    sharedAudioTrackRef.current = null;
     if (localScreenVideoRef.current) {
       localScreenVideoRef.current.srcObject = null;
     }
@@ -531,6 +542,17 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       sender.replaceTrack(camTrack ?? null).catch(() => null);
     } else if (camTrack && pcRef.current && localStreamRef.current) {
       pcRef.current.addTrack(camTrack, localStreamRef.current);
+    }
+
+    const micTrack = localStreamRef.current?.getAudioTracks()?.[0] ?? null;
+    const audioSender = getAudioSender();
+    if (audioSender) {
+      audioSender.replaceTrack(micTrack ?? null).catch(() => null);
+    } else if (micTrack && pcRef.current && localStreamRef.current) {
+      pcRef.current.addTrack(micTrack, localStreamRef.current);
+      if (socketRef.current?.connected && roomIdRef.current) {
+        socketRef.current.emit("request-offer", { roomId: roomIdRef.current });
+      }
     }
     setIsSharing(false);
     // Use roomIdRef so this callback is never stale even when roomId state lags
@@ -678,12 +700,31 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         return;
       }
       sharedVideoTrackRef.current = screenTrack;
+      sharedAudioTrackRef.current = stream.getAudioTracks()[0] ?? null;
       screenTrack.contentHint = "detail";
       const sender = getVideoSender();
       if (sender) {
         await sender.replaceTrack(screenTrack);
       } else if (pcRef.current) {
         pcRef.current.addTrack(screenTrack, stream);
+        if (socketRef.current?.connected && roomIdRef.current) {
+          socketRef.current.emit("request-offer", { roomId: roomIdRef.current });
+        }
+      }
+
+      const screenAudioTrack = sharedAudioTrackRef.current;
+      if (screenAudioTrack) {
+        const audioSender = getAudioSender();
+        if (audioSender) {
+          await audioSender.replaceTrack(screenAudioTrack);
+        } else if (pcRef.current) {
+          pcRef.current.addTrack(screenAudioTrack, stream);
+          if (socketRef.current?.connected && roomIdRef.current) {
+            socketRef.current.emit("request-offer", { roomId: roomIdRef.current });
+          }
+        }
+      } else if (surfaceType === "browser") {
+        toast.info("Tip: Enable tab audio in browser share dialog for YouTube sound.");
       }
       setIsSharing(true);
       setShowSharePicker(false);
