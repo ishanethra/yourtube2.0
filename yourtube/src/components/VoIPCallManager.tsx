@@ -311,6 +311,10 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     });
     pcRef.current = pc;
 
+    // Keep receive lanes for remote media even when local camera/mic are off.
+    try { pc.addTransceiver("video", { direction: "recvonly" }); } catch {}
+    try { pc.addTransceiver("audio", { direction: "recvonly" }); } catch {}
+
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current!));
     }
@@ -337,6 +341,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
     return pc;
   }, []);
+
+  const getVideoSender = () => {
+    const pc = pcRef.current;
+    if (!pc) return null;
+    const senderWithTrack = pc.getSenders().find((s) => s.track?.kind === "video");
+    if (senderWithTrack) return senderWithTrack;
+    const tx = pc.getTransceivers().find((t) => t.receiver?.track?.kind === "video");
+    return tx?.sender ?? null;
+  };
 
   const makeOffer = async (room: string) => {
     const pc = createPeerConnection(room);
@@ -469,7 +482,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     if (localScreenVideoRef.current) {
       localScreenVideoRef.current.srcObject = null;
     }
-    const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+    const sender = getVideoSender();
     const camTrack = localStreamRef.current?.getVideoTracks()?.[0] ?? null;
     if (sender) {
       sender.replaceTrack(camTrack ?? null).catch(() => null);
@@ -623,7 +636,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       }
       sharedVideoTrackRef.current = screenTrack;
       screenTrack.contentHint = "detail";
-      const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+      const sender = getVideoSender();
       if (sender) {
         await sender.replaceTrack(screenTrack);
       } else if (pcRef.current) {
@@ -674,7 +687,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         });
 
         if (!isSharing) {
-          const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+          const sender = getVideoSender();
           if (sender) await sender.replaceTrack(null);
         }
 
@@ -708,7 +721,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       }
 
       if (!isSharing) {
-        const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+        const sender = getVideoSender();
         if (sender) await sender.replaceTrack(freshTrack);
       }
 
