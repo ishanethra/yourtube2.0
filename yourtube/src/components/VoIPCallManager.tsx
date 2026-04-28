@@ -249,7 +249,6 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     });
 
     socket.on("user-joined", () => {
-      toast.info(`A user joined the room`);
       setRemotePresent(true);
       makeOffer(room);
     });
@@ -277,7 +276,6 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     });
 
     socket.on("user-left", () => {
-      toast.info("Participant disconnected");
       setRemoteIsSharing(false);
       setRemoteVideoOff(false);
       setRemotePresent(false);
