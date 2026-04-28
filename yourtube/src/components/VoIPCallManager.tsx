@@ -34,6 +34,25 @@ interface RoomUser {
   isMuted: boolean;
 }
 
+const parseMeetingCodeOrLink = (rawInput: string) => {
+  const raw = String(rawInput || "").trim();
+  if (!raw) return "";
+
+  // Accept plain room code
+  if (!raw.includes("://")) return raw.toUpperCase();
+
+  // Accept full /calls?room=XXXX links
+  try {
+    const url = new URL(raw);
+    const roomFromQuery = url.searchParams.get("room");
+    if (roomFromQuery) return roomFromQuery.trim().toUpperCase();
+    const maybeLastPath = url.pathname.split("/").filter(Boolean).pop() || "";
+    return maybeLastPath.toUpperCase();
+  } catch {
+    return raw.toUpperCase();
+  }
+};
+
 export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProps) {
   const { user, handlegooglesignin } = useUser();
   const [roomId,       setRoomId]       = useState("");
@@ -417,7 +436,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const handleJoinRoom = async (overrideId?: string) => {
     if (!user) return toast.error("Sign in to join the meeting");
-    const idToJoin = (overrideId || joinRoomId).trim().toUpperCase();
+    const idToJoin = parseMeetingCodeOrLink(overrideId || joinRoomId);
     if (!idToJoin) return toast.error("Enter a room ID");
     try {
       if (callState !== "preparing") {

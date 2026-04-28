@@ -67,7 +67,9 @@ app.use((err, req, res, next) => {
 });
 
 io.on("connection", (socket) => {
-  socket.on("join-room", ({ roomId, user }) => {
+  socket.on("join-room", (payload) => {
+    const roomId = typeof payload === "string" ? payload : payload?.roomId;
+    const user = typeof payload === "string" ? null : payload?.user;
     if (!roomId) return;
     const safeUser = {
       socketId: socket.id,
