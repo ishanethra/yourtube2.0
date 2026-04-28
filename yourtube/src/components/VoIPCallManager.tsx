@@ -95,6 +95,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const socketRoomRef = useRef("");
   const socketConnectInFlightRef = useRef(false);
   const sharedVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const lastConnectionToastAtRef = useRef(0);
   const localAvatar = String(user?.image || "").trim();
 
   const refreshLocalPreviewState = useCallback(() => {
@@ -229,13 +230,21 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     socket.on("connect_error", () => {
       socketConnectInFlightRef.current = false;
       setCallState("calling");
-      toast.error("Realtime server reconnecting. Stay on this screen.");
+      const now = Date.now();
+      if (now - lastConnectionToastAtRef.current > 5000) {
+        toast.error("Realtime server reconnecting. Stay on this screen.");
+        lastConnectionToastAtRef.current = now;
+      }
     });
 
     socket.on("disconnect", () => {
       socketConnectInFlightRef.current = false;
       setCallState("calling");
-      toast.info("Connection unstable. Reconnecting...");
+      const now = Date.now();
+      if (now - lastConnectionToastAtRef.current > 5000) {
+        toast.info("Connection unstable. Reconnecting...");
+        lastConnectionToastAtRef.current = now;
+      }
     });
 
     socket.on("user-joined", () => {

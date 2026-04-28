@@ -4,7 +4,7 @@ import { BellOff, PlaySquare, Users, Radio } from "lucide-react";
 import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
 import { sampleYoutubeVideos } from "@/lib/sampleVideos";
-import { safeTimeAgo } from "@/lib/date";
+import { safeTimeAgo, safeTimestamp } from "@/lib/date";
 import { Button } from "@/components/ui/button";
 
 type UserProfile = {
@@ -103,8 +103,8 @@ export default function SubscriptionsPage() {
     });
 
     return Object.values(dedupMap).sort((a, b) => {
-      const ta = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const tb = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      const ta = safeTimestamp(a.createdAt);
+      const tb = safeTimestamp(b.createdAt);
       return tb - ta;
     });
   }, [subscriptions, videos]);

@@ -3,6 +3,7 @@ import { useUser } from "@/lib/AuthContext";
 import axiosInstance from "@/lib/axiosinstance";
 import Link from "next/link";
 import { sampleYoutubeVideos } from "@/lib/sampleVideos";
+import { safeDateLabel } from "@/lib/date";
 import { CheckCircle2, Youtube, HardDrive, Download } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,7 +55,7 @@ const DownloadsPage = () => {
                     Successfully Uploaded
                   </div>
                   <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
-                    {new Date(item.downloadedAt).toLocaleDateString()}
+                    {safeDateLabel(item.downloadedAt)}
                   </span>
                 </div>
               </div>
