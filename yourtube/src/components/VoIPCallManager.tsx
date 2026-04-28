@@ -63,6 +63,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const durationTimer  = useRef<NodeJS.Timeout | null>(null);
   const remoteStreamRef = useRef<MediaStream | null>(null);
   const roomIdRef = useRef(""); // stable ref so callbacks don't capture stale roomId
+  const socketRoomRef = useRef("");
+  const socketConnectInFlightRef = useRef(false);
   const localAvatar = String(user?.image || "").trim();
 
   // Sync streams to video elements whenever they unmount/remount
@@ -107,6 +109,9 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (localScreenVideoRef.current) localScreenVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    roomIdRef.current = "";
+    socketRoomRef.current = "";
+    socketConnectInFlightRef.current = false;
     setCallState("idle");
     setCallDuration(0);
     setIsSharing(false);
@@ -133,11 +138,28 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   }, [isOpen, router.query.room, callState]);
 
   const connectWS = (room: string) => {
-    if (socketRef.current) socketRef.current.disconnect();
-    const socket = io(resolveWsUrl());
+    if (socketConnectInFlightRef.current && socketRoomRef.current === room) return;
+    if (socketRef.current?.connected && socketRoomRef.current === room) return;
+
+    if (socketRef.current && socketRoomRef.current && socketRoomRef.current !== room) {
+      socketRef.current.disconnect();
+    }
+
+    socketConnectInFlightRef.current = true;
+    socketRoomRef.current = room;
+
+    const socket = io(resolveWsUrl(), {
+      transports: ["polling", "websocket"],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      timeout: 20000,
+      forceNew: true,
+    });
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      socketConnectInFlightRef.current = false;
       socket.emit("join-room", room);
       socket.emit("camera-state", { roomId: room, isVideoOn: !isVideoOff });
       setCallState("connected");
@@ -145,9 +167,14 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     });
 
     socket.on("connect_error", () => {
+      socketConnectInFlightRef.current = false;
       // Keep user inside meeting UI so they can still wait and retry links.
       setCallState("connected");
       toast.error("Realtime server reconnecting. Stay on this screen.");
+    });
+
+    socket.on("disconnect", () => {
+      socketConnectInFlightRef.current = false;
     });
 
     socket.on("user-joined", () => {
