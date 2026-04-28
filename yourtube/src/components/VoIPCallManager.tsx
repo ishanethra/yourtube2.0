@@ -45,6 +45,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const [syncUrl, setSyncUrl] = useState("");
   const [callDuration, setCallDuration] = useState(0);
   const [micLevel, setMicLevel] = useState(0);
+  const [hasLocalPreview, setHasLocalPreview] = useState(false);
 
   const localVideoRef  = useRef<HTMLVideoElement>(null);
   const localScreenVideoRef = useRef<HTMLVideoElement>(null);
@@ -66,6 +67,21 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const socketRoomRef = useRef("");
   const socketConnectInFlightRef = useRef(false);
   const localAvatar = String(user?.image || "").trim();
+
+  const refreshLocalPreviewState = useCallback(() => {
+    const liveVideoTrack = localStreamRef.current
+      ?.getVideoTracks()
+      ?.some((track) => track.readyState === "live");
+    setHasLocalPreview(Boolean(liveVideoTrack) && !isVideoOff);
+  }, [isVideoOff]);
+
+  const attachLocalPreview = useCallback((node: HTMLVideoElement | null) => {
+    localVideoRef.current = node;
+    if (node && localStreamRef.current) {
+      node.srcObject = localStreamRef.current;
+      node.play().catch(() => null);
+    }
+  }, []);
 
   // Sync streams to video elements whenever they unmount/remount
   // By adding layout states to dependencies, this re-runs immediately after React mounts new <video> nodes
@@ -120,6 +136,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     setRemotePresent(false);
     setIsMinimized(false);
     setMicLevel(0);
+    setHasLocalPreview(false);
     if (!silent) {
       toast.info("Call ended");
       onClose();
@@ -284,16 +301,21 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const startLocalMedia = async () => {
     try {
-      if (localStreamRef.current) return;
+      if (localStreamRef.current) {
+        refreshLocalPreviewState();
+        return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStreamRef.current = stream;
       if (localVideoRef.current) localVideoRef.current.srcObject = stream;
       if (localVideoRef.current) {
         localVideoRef.current.play().catch(() => null);
       }
+      refreshLocalPreviewState();
     } catch (err) {
       console.error("Local media error:", err);
       toast.error("Could not access camera/mic");
+      setHasLocalPreview(false);
     }
   };
 
@@ -596,6 +618,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         }
 
         setIsVideoOff(true);
+        setHasLocalPreview(false);
         if (socketRef.current?.connected && roomId) {
           socketRef.current.emit("camera-state", { roomId, isVideoOn: false });
         }
@@ -625,6 +648,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       }
 
       setIsVideoOff(false);
+      refreshLocalPreviewState();
       if (socketRef.current?.connected && roomId) {
         socketRef.current.emit("camera-state", { roomId, isVideoOn: true });
       }
@@ -836,7 +860,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
               {/* Left Side: Video Preview */}
               <div className="w-full lg:w-[640px] flex flex-col gap-4">
                 <div className="relative aspect-video bg-[#3c4043] rounded-2xl overflow-hidden shadow-2xl group border border-white/5">
-                  {(isVideoOff || !user || !localStreamRef.current?.getVideoTracks()?.length) ? (
+                  {(isVideoOff || !user || !hasLocalPreview) ? (
                     <div className="absolute inset-0 flex items-center justify-center bg-[#202124]">
                       {localAvatar ? (
                         <img
@@ -851,7 +875,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                       )}
                     </div>
                   ) : (
-                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
+                    <video ref={attachLocalPreview} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
                   )}
                   
                   {/* Preview Mic/Cam indicators */}
@@ -1035,7 +1059,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
                       )}
                     </div>
                   ) : (
-                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
+                    <video ref={attachLocalPreview} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
                   )}
                   <div className="absolute bottom-4 left-4 flex items-center gap-3">
                     <span className="text-white text-xs font-medium bg-black/40 px-3 py-1.5 rounded-md backdrop-blur-md">
