@@ -75,6 +75,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   const roomIdRef = useRef(""); // stable ref so callbacks don't capture stale roomId
   const socketRoomRef = useRef("");
   const socketConnectInFlightRef = useRef(false);
+  const sharedVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const localAvatar = String(user?.image || "").trim();
 
   const refreshLocalPreviewState = useCallback(() => {
@@ -442,14 +443,19 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   };
 
   const stopScreenShare = useCallback(() => {
+    if (!screenStreamRef.current && !isSharing) return;
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current = null;
+    sharedVideoTrackRef.current = null;
     if (localScreenVideoRef.current) {
       localScreenVideoRef.current.srcObject = null;
     }
-    if (localStreamRef.current) {
-      const camTrack = localStreamRef.current.getVideoTracks()[0];
-      pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(camTrack ?? null);
+    const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+    const camTrack = localStreamRef.current?.getVideoTracks()?.[0] ?? null;
+    if (sender) {
+      sender.replaceTrack(camTrack ?? null).catch(() => null);
+    } else if (camTrack && pcRef.current && localStreamRef.current) {
+      pcRef.current.addTrack(camTrack, localStreamRef.current);
     }
     setIsSharing(false);
     // Use roomIdRef so this callback is never stale even when roomId state lags
@@ -457,7 +463,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
       socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: false });
     }
     toast.info("Screen sharing stopped");
-  }, []);
+  }, [isSharing]);
 
   const stopComposedRecorderResources = useCallback(() => {
     if (recordingFrameRef.current) {
@@ -576,6 +582,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
 
   const startScreenShare = useCallback(async (surfaceType: "browser" | "window" | "monitor" = "browser") => {
     try {
+      if (isSharing) return;
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: surfaceType,
@@ -591,12 +598,22 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         localScreenVideoRef.current.play().catch(() => null);
       }
       const screenTrack = stream.getVideoTracks()[0];
+      if (!screenTrack) {
+        toast.error("No shareable screen track found.");
+        return;
+      }
+      sharedVideoTrackRef.current = screenTrack;
       screenTrack.contentHint = "detail";
-      pcRef.current?.getSenders().find((s) => s.track?.kind === "video")?.replaceTrack(screenTrack);
+      const sender = pcRef.current?.getSenders().find((s) => s.track?.kind === "video");
+      if (sender) {
+        await sender.replaceTrack(screenTrack);
+      } else if (pcRef.current) {
+        pcRef.current.addTrack(screenTrack, stream);
+      }
       setIsSharing(true);
       setShowSharePicker(false);
-      if (socketRef.current?.connected && roomId) {
-        socketRef.current.emit("screen-share-state", { roomId, isSharing: true });
+      if (socketRef.current?.connected && roomIdRef.current) {
+        socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: true });
       }
       if (surfaceType === "browser") {
         setIsMinimized(true);
@@ -607,7 +624,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     } catch {
       toast.error("Screen share cancelled or denied");
     }
-  }, [roomId, stopScreenShare]);
+  }, [isSharing, stopScreenShare]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
