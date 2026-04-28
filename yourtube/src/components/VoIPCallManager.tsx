@@ -676,8 +676,17 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
   }, [isSharing, remoteIsSharing, user?.name]);
 
   const startScreenShare = useCallback(async (surfaceType: "browser" | "window" | "monitor" = "browser") => {
+    const wasMinimized = isMinimized;
     try {
       if (isSharing) return;
+      if (surfaceType === "browser") {
+        // Ensure users share app content (videos/feed), not the call overlay itself.
+        setIsMinimized(true);
+        if (router.pathname !== "/") {
+          await router.replace("/", undefined, { shallow: true });
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: surfaceType,
@@ -732,19 +741,15 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: true });
       }
       if (surfaceType === "browser") {
-        setIsMinimized(true);
-        // Meet-like behavior for in-app tab share: show app content, not call UI.
-        if (router.pathname === "/calls" || router.pathname === "/auth") {
-          router.replace("/", undefined, { shallow: true });
-        }
         toast.success("Call minimized. Open videos in this tab while sharing.");
       }
       screenTrack.onended = () => stopScreenShare();
       toast.success("Screen share started");
     } catch {
+      if (!wasMinimized) setIsMinimized(false);
       toast.error("Screen share cancelled or denied");
     }
-  }, [isSharing, stopScreenShare]);
+  }, [isSharing, isMinimized, router, stopScreenShare]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
