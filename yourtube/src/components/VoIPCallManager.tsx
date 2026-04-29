@@ -138,6 +138,7 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     if (durationTimer.current) clearInterval(durationTimer.current);
     if (socketRef.current?.connected && roomIdRef.current) {
       socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: false });
+      socketRef.current.emit("leave-room", roomIdRef.current);
     }
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -760,8 +761,31 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         if (socketRef.current?.connected && roomIdRef.current) {
           socketRef.current.emit("mute-state", { roomId: roomIdRef.current, isMuted: !audioTrack.enabled });
         }
+        return;
       }
     }
+    // If user joined with camera-only (mic unavailable), allow recovering mic later.
+    navigator.mediaDevices.getUserMedia({ audio: true }).then((audioOnly) => {
+      const newAudioTrack = audioOnly.getAudioTracks()[0];
+      if (!newAudioTrack || !localStreamRef.current) return;
+      localStreamRef.current.addTrack(newAudioTrack);
+      const audioSender = getAudioSender();
+      if (audioSender) {
+        audioSender.replaceTrack(newAudioTrack).catch(() => null);
+      } else if (pcRef.current) {
+        pcRef.current.addTrack(newAudioTrack, localStreamRef.current);
+        if (socketRef.current?.connected && roomIdRef.current) {
+          socketRef.current.emit("request-offer", { roomId: roomIdRef.current });
+        }
+      }
+      setIsMuted(false);
+      if (socketRef.current?.connected && roomIdRef.current) {
+        socketRef.current.emit("mute-state", { roomId: roomIdRef.current, isMuted: false });
+      }
+      toast.success("Microphone connected");
+    }).catch(() => {
+      toast.error("Microphone permission denied or in use by another app.");
+    });
   };
 
   const toggleVideo = async () => {
