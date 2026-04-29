@@ -680,14 +680,8 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
     const wasMinimized = isMinimized;
     try {
       if (isSharing) return;
-      if (surfaceType === "browser") {
-        // Ensure users share app content (videos/feed), not the call overlay itself.
-        setIsMinimized(true);
-        if (router.pathname !== "/") {
-          await router.replace("/", undefined, { shallow: true });
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
+      // Keep getDisplayMedia directly in user-click path; browsers may block if we
+      // navigate first and lose the activation gesture.
       const stream = await navigator.mediaDevices.getDisplayMedia({
         video: {
           displaySurface: surfaceType,
@@ -742,6 +736,11 @@ export default function VoIPCallManager({ isOpen, onClose }: VoIPCallManagerProp
         socketRef.current.emit("screen-share-state", { roomId: roomIdRef.current, isSharing: true });
       }
       if (surfaceType === "browser") {
+        setIsMinimized(true);
+        // After capture starts, switch app view to feed so participants see videos.
+        if (router.pathname !== "/") {
+          router.replace("/", undefined, { shallow: true });
+        }
         toast.success("Call minimized. Open videos in this tab while sharing.");
       }
       screenTrack.onended = () => stopScreenShare();
